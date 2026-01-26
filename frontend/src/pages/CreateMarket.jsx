@@ -9,7 +9,7 @@ import ipfsService from '../services/IPFSService'
 
 export default function CreateMarket() {
     const navigate = useNavigate()
-    const { connected, publicKey, requestTransaction, transactionStatus } = useWallet()
+    const { connected, publicKey, requestTransaction } = useWallet()
 
     const [formData, setFormData] = useState({
         question: '',
@@ -117,59 +117,16 @@ export default function CreateMarket() {
                 feePrivate: false,
             })
 
-            console.log('Market request submitted, polling for status:', txId)
-            setTxStatus('Transaction submitted! Waiting for confirmation...')
-
-            // Poll for the actual transaction ID from the wallet
-            let realTxId = null
-            let attempts = 0
-            const maxAttempts = 30 // Poll for up to 60 seconds
+            console.log('Transaction approved by wallet:', txId)
             
-            while (!realTxId && attempts < maxAttempts) {
-                try {
-                    const status = await transactionStatus(txId)
-                    console.log('Transaction status:', status)
-                    
-                    // The status object may contain the real transaction ID
-                    if (status && typeof status === 'string' && status.startsWith('at1')) {
-                        realTxId = status
-                    } else if (status?.transactionId && status.transactionId.startsWith('at1')) {
-                        realTxId = status.transactionId
-                    } else if (status?.id && status.id.startsWith('at1')) {
-                        realTxId = status.id
-                    }
-                    
-                    if (!realTxId) {
-                        await new Promise(resolve => setTimeout(resolve, 2000))
-                        attempts++
-                    }
-                } catch (statusErr) {
-                    console.log('Status check attempt:', attempts, statusErr.message)
-                    await new Promise(resolve => setTimeout(resolve, 2000))
-                    attempts++
-                }
-            }
-
-            const finalTxId = realTxId || txId
-            console.log('Final transaction ID:', finalTxId)
-            setTxStatus('Market created! Redirecting to markets...')
-
-            // Save locally with question hash for immediate feedback
+            // Save locally immediately after wallet approval
             const hashStr = questionHashNum.toString()
             marketStorage.addMarket(marketId, formData.question, hashStr)
             ipfsService.storeQuestionLocally(hashStr, formData.question, ipfsResult?.cid)
             console.log('Market saved with hash:', hashStr)
 
-            setTxResult({
-                txId: finalTxId,
-                marketId,
-                explorerUrl: getExplorerUrl('transaction', finalTxId),
-            })
-
-            // Wait a moment then navigate
-            setTimeout(() => {
-                navigate('/markets')
-            }, 2000)
+            // Redirect immediately to markets page - don't wait for on-chain confirmation
+            navigate('/markets')
 
         } catch (err) {
             console.error('Error creating market:', err)
