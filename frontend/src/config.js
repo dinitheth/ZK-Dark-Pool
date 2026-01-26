@@ -5,7 +5,7 @@ export const ALEO_CONFIG = {
     rpcUrl: 'https://api.explorer.provable.com/v1',
 
     // Program ID - update this after deployment
-    programId: 'dark_pool_market.aleo',
+    programId: 'dark_pool_marketv1.aleo',
 
     // Fee settings (in microcredits)
     fees: {
