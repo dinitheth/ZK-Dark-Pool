@@ -5,26 +5,9 @@ const IPFS_GATEWAYS = [
     'https://dweb.link/ipfs/',
 ]
 
-const IPFS_INDEX_KEY = 'zk_darkpool_ipfs_index'
+const INDEXER_URL = ''
 
 class IPFSService {
-    constructor() {
-        this.index = this.loadIndex()
-    }
-
-    loadIndex() {
-        try {
-            const stored = localStorage.getItem(IPFS_INDEX_KEY)
-            return stored ? JSON.parse(stored) : {}
-        } catch {
-            return {}
-        }
-    }
-
-    saveIndex() {
-        localStorage.setItem(IPFS_INDEX_KEY, JSON.stringify(this.index))
-    }
-
     async hashQuestion(question) {
         const encoder = new TextEncoder()
         const data = encoder.encode(question)
@@ -39,17 +22,17 @@ class IPFSService {
         const question = questionData.question
         const hash = await this.hashQuestion(question)
         
-        const content = JSON.stringify({
-            question: question,
-            category: questionData.category || 'general',
-            createdAt: questionData.createdAt || Date.now(),
-            hash: hash.toString(),
-            version: 1,
-        })
-
-        let cid = null
+        let ipfsCid = null
 
         try {
+            const content = JSON.stringify({
+                question: question,
+                category: questionData.category || 'general',
+                createdAt: questionData.createdAt || Date.now(),
+                hash: hash.toString(),
+                version: 1,
+            })
+
             const blob = new Blob([content], { type: 'application/json' })
             const formData = new FormData()
             formData.append('file', blob, 'question.json')
@@ -61,72 +44,100 @@ class IPFSService {
 
             if (response.ok) {
                 const data = await response.json()
-                cid = data.cid
-                console.log('Uploaded to IPFS:', cid)
+                ipfsCid = data.cid
+                console.log('Uploaded to IPFS:', ipfsCid)
             }
         } catch (error) {
-            console.log('IPFS upload unavailable, using local storage')
+            console.log('IPFS upload unavailable, using indexer only')
         }
 
-        this.index[hash.toString()] = {
-            question: question,
-            cid: cid,
-            createdAt: Date.now(),
-        }
-        this.saveIndex()
+        await this.indexQuestion(hash.toString(), question, ipfsCid, questionData.marketId)
 
         return {
             hash: hash,
-            cid: cid,
+            cid: ipfsCid,
         }
+    }
+
+    async indexQuestion(hash, question, ipfsCid = null, marketId = null) {
+        try {
+            const response = await fetch(`${INDEXER_URL}/api/index`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hash, question, ipfsCid, marketId })
+            })
+            
+            if (response.ok) {
+                console.log('Question indexed successfully')
+                return true
+            }
+        } catch (error) {
+            console.warn('Failed to index question:', error)
+        }
+        return false
     }
 
     async fetchQuestion(questionHash) {
         const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
         
-        if (this.index[hashStr]) {
-            return this.index[hashStr].question
-        }
-
-        const cid = this.index[hashStr]?.cid
-        if (cid) {
-            for (const gateway of IPFS_GATEWAYS) {
-                try {
-                    const response = await fetch(`${gateway}${cid}`, {
-                        signal: AbortSignal.timeout(5000),
-                    })
-
-                    if (response.ok) {
-                        const data = await response.json()
-                        this.index[hashStr] = {
-                            question: data.question,
-                            cid: cid,
-                            createdAt: Date.now(),
-                        }
-                        this.saveIndex()
-                        return data.question
-                    }
-                } catch (error) {
-                    console.log(`Gateway ${gateway} failed, trying next...`)
-                }
+        try {
+            const response = await fetch(`${INDEXER_URL}/api/question/${hashStr}`)
+            if (response.ok) {
+                const data = await response.json()
+                return data.question
             }
+        } catch (error) {
+            console.warn('Indexer fetch failed:', error)
         }
 
         return null
     }
 
+    async fetchQuestionWithCid(questionHash) {
+        const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
+        
+        try {
+            const response = await fetch(`${INDEXER_URL}/api/question/${hashStr}`)
+            if (response.ok) {
+                const data = await response.json()
+                
+                if (data.ipfsCid && !data.question) {
+                    const ipfsQuestion = await this.fetchFromIPFS(data.ipfsCid)
+                    if (ipfsQuestion) return ipfsQuestion
+                }
+                
+                return data.question
+            }
+        } catch (error) {
+            console.warn('Fetch failed:', error)
+        }
+
+        return null
+    }
+
+    async fetchFromIPFS(cid) {
+        for (const gateway of IPFS_GATEWAYS) {
+            try {
+                const response = await fetch(`${gateway}${cid}`, {
+                    signal: AbortSignal.timeout(5000),
+                })
+                if (response.ok) {
+                    const data = await response.json()
+                    return data.question
+                }
+            } catch (error) {
+                continue
+            }
+        }
+        return null
+    }
+
     getQuestionByHash(hashStr) {
-        return this.index[hashStr]?.question || null
+        return null
     }
 
     storeQuestionLocally(hash, question, cid = null) {
-        const hashStr = typeof hash === 'bigint' ? hash.toString() : String(hash)
-        this.index[hashStr] = {
-            question: question,
-            cid: cid,
-            createdAt: Date.now(),
-        }
-        this.saveIndex()
+        this.indexQuestion(String(hash), question, cid)
     }
 }
 

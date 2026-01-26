@@ -38,6 +38,14 @@ The Leo smart contract includes:
 - **Current Workaround**: Users can use "Track Existing" to manually add markets with their question text. The on-chain data (market ID, pool sizes, resolution status) is always fully discoverable.
 - **Contract Redeployment**: After modifying `main.leo`, the contract must be redeployed to the Aleo testnet for changes to take effect.
 
+## Backend Indexer
+A simple Express backend runs on port 3001 and provides question indexing:
+- `POST /api/index` - Store hash → question mapping
+- `GET /api/question/:hash` - Retrieve question by hash
+- `GET /api/health` - Health check
+- Data is persisted to `backend/questions.json`
+- Vite proxies `/api` requests to the backend
+
 ## Development
 The frontend runs on port 5000 using Vite's development server.
 
