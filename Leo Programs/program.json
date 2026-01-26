@@ -1,5 +1,5 @@
 {
-    "program": "dark_pool_marketv1.aleo",
+    "program": "dark_pool_marketv2.aleo",
     "version": "0.1.0",
     "description": "Privacy-preserving prediction market with hidden bets",
     "license": "MIT"

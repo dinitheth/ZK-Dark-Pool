@@ -41,6 +41,8 @@ The Leo smart contract includes:
 ## Recent Fix (Jan 26, 2026)
 Fixed a bug in the Leo contract where `Mapping::contains ? Mapping::get : default` pattern was causing transaction rejections. Changed to use `Mapping::get_or_use` which is the proper Leo pattern for safe default values in finalize functions.
 
+**Current Deployment**: `dark_pool_marketv2.aleo` deployed at `at1670xyrh639plfknnjs04mm9wvcsjupu972mwvq5a8y6mtev4vuxqk4mxqt`
+
 ## Backend Indexer
 A simple Express backend runs on port 3001 and provides question indexing:
 - `POST /api/index` - Store hash → question mapping

@@ -1,7 +1,7 @@
 // ZK Dark Pool Prediction Market (Leo 3.4.0)
 // Privacy-preserving prediction market on Aleo
 
-program dark_pool_marketv1.aleo {
+program dark_pool_marketv2.aleo {
 
     // ============================================
     // RECORDS (Private State)
