@@ -51,6 +51,24 @@ export default function Markets() {
     const [markets, setMarkets] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [filter, setFilter] = useState('all')
+    const [showAddMarket, setShowAddMarket] = useState(false)
+    const [addMarketId, setAddMarketId] = useState('')
+    const [addMarketQuestion, setAddMarketQuestion] = useState('')
+    const [addMarketError, setAddMarketError] = useState('')
+
+    const handleAddMarket = () => {
+        if (!addMarketId.trim() || !addMarketQuestion.trim()) {
+            setAddMarketError('Please enter both Market ID and Question')
+            return
+        }
+        const marketId = addMarketId.replace('field', '').trim()
+        marketStorage.addMarket(marketId, addMarketQuestion.trim())
+        setAddMarketId('')
+        setAddMarketQuestion('')
+        setAddMarketError('')
+        setShowAddMarket(false)
+        window.location.reload()
+    }
 
     useEffect(() => {
         const loadMarkets = async () => {
@@ -152,10 +170,62 @@ export default function Markets() {
                         Bet on outcomes with complete privacy. Your positions are hidden until resolution.
                     </p>
                 </div>
-                <Link to="/create" className="btn btn-primary">
-                    + Create Market
-                </Link>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                    <button 
+                        className="btn btn-outline"
+                        onClick={() => setShowAddMarket(!showAddMarket)}
+                    >
+                        Track Existing
+                    </button>
+                    <Link to="/create" className="btn btn-primary">
+                        + Create Market
+                    </Link>
+                </div>
             </div>
+
+            {showAddMarket && (
+                <div style={{
+                    padding: 'var(--spacing-lg)',
+                    background: 'var(--color-bg-card)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--color-border)',
+                    marginBottom: 'var(--spacing-xl)'
+                }}>
+                    <h4 style={{ marginBottom: 'var(--spacing-md)' }}>Track an Existing Market</h4>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: 'var(--spacing-md)' }}>
+                        If you created markets from another browser or device, enter the market details to track them here.
+                    </p>
+                    {addMarketError && (
+                        <div style={{ color: 'var(--color-no)', marginBottom: 'var(--spacing-md)' }}>
+                            {addMarketError}
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Market ID (e.g., 123456789)"
+                            value={addMarketId}
+                            onChange={(e) => setAddMarketId(e.target.value)}
+                        />
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Market Question"
+                            value={addMarketQuestion}
+                            onChange={(e) => setAddMarketQuestion(e.target.value)}
+                        />
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <button className="btn btn-primary" onClick={handleAddMarket}>
+                                Add Market
+                            </button>
+                            <button className="btn btn-outline" onClick={() => setShowAddMarket(false)}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div style={{
                 display: 'flex',
