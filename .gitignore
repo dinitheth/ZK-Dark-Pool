@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.aleo.prover
+*.aleo.verifier
+
+# Leo build artifacts
+dark_pool_market/build/
+dark_pool_market/outputs/
+
+# Environment
+.env
+.env.local
+.env.production
+*.private
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Cache
+.cache/
+.parcel-cache/

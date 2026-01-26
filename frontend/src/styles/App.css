@@ -1,0 +1,904 @@
+/* ============================================
+   App Layout Styles
+   ============================================ */
+
+.app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    flex: 1;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-xl);
+}
+
+/* ============================================
+   Header
+   ============================================ */
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: rgba(10, 11, 13, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.header-logo h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.header-logo .logo-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--color-accent) 0%, #a855f7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+}
+
+.header-nav a {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.header-nav a:hover,
+.header-nav a.active {
+    color: var(--color-text-primary);
+    background: var(--color-bg-tertiary);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    background: var(--color-bg-secondary);
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+/* Network Status Indicator */
+.network-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-tertiary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid var(--color-border);
+}
+
+.network-status .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.network-status.connected .status-dot {
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.network-status.connected .status-text {
+    color: #10b981;
+}
+
+.network-status.checking .status-dot {
+    background: #f59e0b;
+}
+
+.network-status.checking .status-text {
+    color: var(--color-text-secondary);
+}
+
+.network-status.disconnected .status-dot {
+    background: #ef4444;
+}
+
+.network-status.disconnected .status-text {
+    color: var(--color-text-secondary);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Custom Wallet Button */
+.wallet-button {
+    background: var(--color-accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    height: 40px;
+    padding: 0 var(--spacing-md);
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.wallet-button:hover {
+    background: var(--color-accent-hover);
+    transform: translateY(-1px);
+}
+
+.wallet-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.wallet-button.connected {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+}
+
+/* Official Leo Wallet Adapter Styling */
+.wallet-adapter-button {
+    background: var(--color-accent) !important;
+    border-radius: var(--radius-md) !important;
+    height: 40px !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+}
+
+.wallet-adapter-button:hover {
+    background: var(--color-accent-hover) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+    z-index: 10000 !important;
+}
+
+.wallet-adapter-modal-overlay {
+    background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.wallet-adapter-modal {
+    background: var(--color-bg-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.wallet-adapter-modal-title {
+    color: var(--color-text-primary) !important;
+}
+
+.wallet-adapter-modal-list li {
+    background: var(--color-bg-tertiary) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+.wallet-adapter-modal-list li:hover {
+    background: var(--color-bg) !important;
+}
+
+.wallet-adapter-modal-button-close {
+    background: var(--color-bg-tertiary) !important;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Legacy wallet-option for backwards compatibility */
+.wallet-option {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--color-text-primary);
+}
+
+.wallet-option:hover {
+    background: var(--color-bg);
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+}
+
+.wallet-option.installed {
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.wallet-option.installed:hover {
+    border-color: #22c55e;
+}
+
+.wallet-empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-text-secondary);
+}
+
+.wallet-empty a {
+    color: var(--color-accent);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+.footer {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    text-align: center;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.footer a {
+    font-weight: 600;
+}
+
+.privacy-badge {
+    margin-top: var(--spacing-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--color-private);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.privacy-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+    border-radius: 50%;
+}
+
+/* ============================================
+   Market Grid
+   ============================================ */
+
+.markets-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xl);
+}
+
+.markets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+/* ============================================
+   Market Card
+   ============================================ */
+
+.market-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    transition: all var(--transition-base);
+    cursor: pointer;
+}
+
+.market-card:hover {
+    background: var(--color-bg-card-hover);
+    border-color: var(--color-border-light);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.market-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+.market-card-question {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    flex: 1;
+    margin-right: var(--spacing-md);
+}
+
+.market-card-status {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.market-card-status.open {
+    background: var(--color-yes-bg);
+    color: var(--color-yes);
+}
+
+.market-card-status.resolved {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--color-text-secondary);
+}
+
+.market-card-status.pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.market-card-pool {
+    display: flex;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.pool-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.pool-stat-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--spacing-xs);
+}
+
+.pool-stat-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.pool-stat-value.yes {
+    color: var(--color-yes);
+}
+
+.pool-stat-value.no {
+    color: var(--color-no);
+}
+
+.market-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.market-card-time {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+/* ============================================
+   Bet Form
+   ============================================ */
+
+.bet-form {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+}
+
+.bet-form-title {
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.bet-form-outcomes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.outcome-btn {
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    border: 2px solid transparent;
+}
+
+.outcome-btn.yes {
+    background: var(--color-yes-bg);
+    color: var(--color-yes);
+}
+
+.outcome-btn.yes:hover,
+.outcome-btn.yes.selected {
+    background: var(--color-yes);
+    color: white;
+    border-color: var(--color-yes);
+}
+
+.outcome-btn.no {
+    background: var(--color-no-bg);
+    color: var(--color-no);
+}
+
+.outcome-btn.no:hover,
+.outcome-btn.no.selected {
+    background: var(--color-no);
+    color: white;
+    border-color: var(--color-no);
+}
+
+.bet-amount-input {
+    margin-bottom: var(--spacing-lg);
+}
+
+.bet-amount-input input {
+    width: 100%;
+    font-size: 1.5rem;
+    font-family: var(--font-mono);
+    text-align: center;
+}
+
+.bet-submit {
+    width: 100%;
+    padding: var(--spacing-md);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.bet-privacy-note {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-private);
+}
+
+.bet-privacy-note::before {
+    content: '';
+}
+
+/* ============================================
+   Create Market Form
+   ============================================ */
+
+.create-market-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.form-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-secondary);
+}
+
+/* ============================================
+   Portfolio
+   ============================================ */
+
+.portfolio-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.portfolio-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.portfolio-stat-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.portfolio-stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-sm);
+}
+
+.portfolio-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+}
+
+.bet-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.bet-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.bet-list-item-market {
+    flex: 1;
+    font-weight: 500;
+}
+
+.bet-list-item-amount {
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.bet-list-item-outcome {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.bet-list-item-outcome.yes {
+    background: var(--color-yes-bg);
+    color: var(--color-yes);
+}
+
+.bet-list-item-outcome.no {
+    background: var(--color-no-bg);
+    color: var(--color-no);
+}
+
+/* ============================================
+   Empty States
+   ============================================ */
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--color-text-muted);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+    }
+
+    .header-nav {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .markets-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bet-form-outcomes {
+        grid-template-columns: 1fr;
+    }
+}
+/* ============================================
+   Light Mode Styles
+   ============================================ */
+
+body.light-mode {
+    background: #f8fafc;
+}
+
+body.light-mode .app {
+    background: #f8fafc;
+}
+
+body.light-mode .header {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom-color: #e2e8f0;
+}
+
+body.light-mode .header-logo h1 {
+    color: #0f172a;
+}
+
+body.light-mode .header-nav a {
+    color: #475569;
+}
+
+body.light-mode .header-nav a:hover,
+body.light-mode .header-nav a.active {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+body.light-mode .network-status {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #0f172a;
+}
+
+body.light-mode .theme-toggle {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
+body.light-mode .theme-toggle:hover {
+    background: #e2e8f0;
+}
+
+body.light-mode .hero-section h2,
+body.light-mode .hero-section .hero-title {
+    color: #0f172a;
+}
+
+body.light-mode .hero-section p,
+body.light-mode .hero-description {
+    color: #475569;
+}
+
+body.light-mode .hero-badge {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
+body.light-mode .hero-stats .stat-value {
+    color: #0f172a;
+}
+
+body.light-mode .hero-stats .stat-label {
+    color: #64748b;
+}
+
+body.light-mode .market-card,
+body.light-mode .bet-form,
+body.light-mode .portfolio-summary,
+body.light-mode .position-card,
+body.light-mode .create-market-form {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .market-card:hover {
+    background: #fafafa;
+    border-color: #cbd5e1;
+}
+
+body.light-mode .market-card h3,
+body.light-mode .market-title {
+    color: #0f172a;
+}
+
+body.light-mode .market-card p,
+body.light-mode .market-description {
+    color: #475569;
+}
+
+body.light-mode .btn-secondary,
+body.light-mode .btn-outline {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #0f172a;
+}
+
+body.light-mode .btn-secondary:hover,
+body.light-mode .btn-outline:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #0f172a;
+}
+
+body.light-mode input:focus,
+body.light-mode select:focus,
+body.light-mode textarea:focus {
+    border-color: #6366f1;
+}
+
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder {
+    color: #94a3b8;
+}
+
+body.light-mode .form-label,
+body.light-mode label {
+    color: #0f172a;
+}
+
+body.light-mode .form-helper,
+body.light-mode .helper-text {
+    color: #64748b;
+}
+
+body.light-mode .page-title,
+body.light-mode .section-title {
+    color: #0f172a;
+}
+
+body.light-mode .page-subtitle {
+    color: #475569;
+}
+
+body.light-mode .privacy-note {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
+body.light-mode .wallet-adapter-button {
+    background: #6366f1 !important;
+}
+
+body.light-mode .outcome-btn {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #0f172a;
+}
+
+body.light-mode .empty-state {
+    color: #64748b;
+}
+
+body.light-mode .stat-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+
+body.light-mode .stat-card .stat-value {
+    color: #0f172a;
+}
+
+body.light-mode .stat-card .stat-label {
+    color: #64748b;
+}
+
