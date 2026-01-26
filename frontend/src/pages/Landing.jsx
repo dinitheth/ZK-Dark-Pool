@@ -1,9 +1,72 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import WalletButton from '../components/WalletButton'
+import aleoService from '../services/AleoService'
+import marketStorage from '../services/MarketStorage'
 
 export default function Landing() {
     const { connected } = useWallet()
+    const [stats, setStats] = useState({
+        totalVolume: 0,
+        totalMarkets: 0,
+        isLoading: true
+    })
+
+    useEffect(() => {
+        fetchStats()
+    }, [])
+
+    const fetchStats = async () => {
+        try {
+            // Get all known markets from local storage
+            const knownMarkets = marketStorage.getMarketIds()
+            let totalVolume = 0
+            let validMarkets = 0
+
+            // Fetch pool data for each market
+            for (const market of knownMarkets) {
+                try {
+                    const pool = await aleoService.getPool(market.id)
+                    if (pool) {
+                        totalVolume += pool.yesPool + pool.noPool
+                        validMarkets++
+                    }
+                } catch (err) {
+                    console.log('Could not fetch pool for market:', market.id)
+                }
+            }
+
+            // Also try to discover markets from on-chain market count
+            try {
+                const onChainCount = await aleoService.getMarketCount()
+                if (onChainCount > validMarkets) {
+                    validMarkets = onChainCount
+                }
+            } catch (err) {
+                console.log('Could not fetch market count from chain')
+            }
+
+            setStats({
+                totalVolume,
+                totalMarkets: Math.max(validMarkets, knownMarkets.length),
+                isLoading: false
+            })
+        } catch (err) {
+            console.error('Error fetching stats:', err)
+            setStats(prev => ({ ...prev, isLoading: false }))
+        }
+    }
+
+    const formatVolume = (credits) => {
+        // Convert microcredits to credits and format
+        if (credits >= 1000000) {
+            return `${(credits / 1000000).toFixed(1)}M`
+        } else if (credits >= 1000) {
+            return `${(credits / 1000).toFixed(1)}K`
+        }
+        return credits.toString()
+    }
 
     return (
         <div className="landing-page">
@@ -29,13 +92,17 @@ export default function Landing() {
                     </div>
                     <div className="hero-stats">
                         <div className="hero-stat">
-                            <span className="hero-stat-value">$2.4M+</span>
+                            <span className="hero-stat-value">
+                                {stats.isLoading ? '...' : `${formatVolume(stats.totalVolume)} ALEO`}
+                            </span>
                             <span className="hero-stat-label">Total Volume</span>
                         </div>
                         <div className="hero-stat-divider"></div>
                         <div className="hero-stat">
-                            <span className="hero-stat-value">1,200+</span>
-                            <span className="hero-stat-label">Active Traders</span>
+                            <span className="hero-stat-value">
+                                {stats.isLoading ? '...' : stats.totalMarkets}
+                            </span>
+                            <span className="hero-stat-label">Total Markets</span>
                         </div>
                         <div className="hero-stat-divider"></div>
                         <div className="hero-stat">
