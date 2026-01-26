@@ -193,7 +193,7 @@ export default function MarketDetail() {
                         fontSize: '0.75rem',
                         wordBreak: 'break-all'
                     }}>
-                        TX: {betPlaced.txId || 'Pending confirmation...'}
+                        Request ID: {betPlaced.txId || 'Pending confirmation...'}
                     </div>
                 </div>
             )}
