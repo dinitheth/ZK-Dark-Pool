@@ -233,10 +233,11 @@ class AleoService {
      * @returns {Array<string>}
      */
     buildCreateMarketInputs(marketId, resolutionHeight, questionHash) {
+        const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
         return [
             `${marketId}field`,
             `${resolutionHeight}u32`,
-            `${questionHash}field`,
+            `${hashStr}field`,
         ]
     }
     

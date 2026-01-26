@@ -26,8 +26,9 @@ class MarketStorage {
      * Add a new market to tracking
      * @param {string} marketId - Market ID to track
      * @param {string} question - Market question (for display)
+     * @param {string} ipfsCid - IPFS CID for the question (optional)
      */
-    addMarket(marketId, question) {
+    addMarket(marketId, question, ipfsCid = null) {
         try {
             const markets = this.getMarketIds()
 
@@ -41,6 +42,7 @@ class MarketStorage {
             markets.push({
                 id: marketId,
                 question: question,
+                ipfsCid: ipfsCid,
                 createdAt: Date.now(),
             })
 
@@ -49,6 +51,17 @@ class MarketStorage {
         } catch (error) {
             console.error('Error adding market:', error)
         }
+    }
+    
+    /**
+     * Get IPFS CID for a market
+     * @param {string} marketId
+     * @returns {string|null}
+     */
+    getMarketIpfsCid(marketId) {
+        const markets = this.getMarketIds()
+        const market = markets.find(m => String(m.id) === String(marketId))
+        return market ? market.ipfsCid : null
     }
 
     /**

@@ -5,6 +5,7 @@ import useAleo from '../hooks/useAleo'
 import { ALEO_CONFIG, getExplorerUrl } from '../config'
 import aleoService from '../services/AleoService'
 import marketStorage from '../services/MarketStorage'
+import ipfsService from '../services/IPFSService'
 
 // Demo markets for display when program not deployed
 const DEMO_MARKETS = [
@@ -109,15 +110,49 @@ export default function Markets() {
                         createdAt: local.createdAt,
                     }))
                 
-                // For on-chain markets, try to get question from local storage if available
-                const enrichedOnChainMarkets = onChainMarkets.map(market => {
-                    const localMatch = localMarkets.find(l => String(l.id) === String(market.id))
-                    return {
-                        ...market,
-                        question: localMatch?.question || `Market #${market.id}`,
-                        pending: false,
-                    }
-                })
+                // For on-chain markets, try to get question from local storage or IPFS
+                const enrichedOnChainMarkets = await Promise.all(
+                    onChainMarkets.map(async (market) => {
+                        const localMatch = localMarkets.find(l => String(l.id) === String(market.id))
+                        
+                        // If we have local data, use it
+                        if (localMatch?.question) {
+                            return {
+                                ...market,
+                                question: localMatch.question,
+                                ipfsCid: localMatch.ipfsCid,
+                                pending: false,
+                            }
+                        }
+                        
+                        // Try to fetch from local IPFS index using on-chain question hash
+                        if (market.questionHash) {
+                            try {
+                                const hashStr = String(market.questionHash).replace('field', '')
+                                const question = ipfsService.getQuestionByHash(hashStr) || 
+                                                 await ipfsService.fetchQuestion(hashStr)
+                                if (question) {
+                                    marketStorage.addMarket(market.id, question, hashStr)
+                                    return {
+                                        ...market,
+                                        question: question,
+                                        questionHashStr: hashStr,
+                                        pending: false,
+                                    }
+                                }
+                            } catch (err) {
+                                console.warn('Failed to fetch question:', err)
+                            }
+                        }
+                        
+                        // Fallback to market ID display
+                        return {
+                            ...market,
+                            question: `Market #${market.id}`,
+                            pending: false,
+                        }
+                    })
+                )
                 
                 const allMarkets = [...enrichedOnChainMarkets, ...pendingMarkets]
                 console.log('All markets:', allMarkets)

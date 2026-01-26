@@ -5,6 +5,7 @@ import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapt
 import { ALEO_CONFIG, getExplorerUrl } from '../config'
 import aleoService from '../services/AleoService'
 import marketStorage from '../services/MarketStorage'
+import ipfsService from '../services/IPFSService'
 
 export default function CreateMarket() {
     const navigate = useNavigate()
@@ -65,9 +66,27 @@ export default function CreateMarket() {
         setTxStatus('Generating market ID...')
 
         try {
-            // Generate market ID and question hash from question
+            // Generate market ID from question
             const marketId = generateMarketId(formData.question)
-            const questionHash = generateQuestionHash(formData.question)
+
+            setTxStatus('Uploading question to IPFS...')
+            
+            // Upload question to IPFS and get deterministic hash
+            let questionHashNum
+            let ipfsResult
+            try {
+                ipfsResult = await ipfsService.uploadQuestion({
+                    question: formData.question,
+                    category: formData.category,
+                    createdAt: Date.now(),
+                })
+                questionHashNum = ipfsResult.hash
+                console.log('Question uploaded, hash:', questionHashNum.toString(), 'CID:', ipfsResult.cid)
+            } catch (ipfsError) {
+                console.warn('IPFS upload failed, using local hash:', ipfsError)
+                questionHashNum = BigInt(generateQuestionHash(formData.question))
+                ipfsService.storeQuestionLocally(questionHashNum, formData.question)
+            }
 
             // IMPORTANT: Contract uses resolution_height (block height), not timestamp
             // Estimate: ~5 seconds per block on testnet
@@ -81,7 +100,7 @@ export default function CreateMarket() {
             setTxStatus('Building transaction...')
 
             // Build transaction inputs (now includes questionHash for on-chain storage)
-            const inputs = aleoService.buildCreateMarketInputs(marketId, resolutionHeight, questionHash)
+            const inputs = aleoService.buildCreateMarketInputs(marketId, resolutionHeight, questionHashNum)
 
             setTxStatus('Requesting wallet signature...')
 
@@ -101,9 +120,11 @@ export default function CreateMarket() {
             console.log('Market created:', txId)
             setTxStatus('Transaction submitted! Market will appear in the list once confirmed on blockchain.')
 
-            // Also save locally for immediate feedback (blockchain confirmation takes time)
-            marketStorage.addMarket(marketId, formData.question)
-            console.log('Market saved to local storage for immediate display')
+            // Save locally with question hash for immediate feedback
+            const hashStr = questionHashNum.toString()
+            marketStorage.addMarket(marketId, formData.question, hashStr)
+            ipfsService.storeQuestionLocally(hashStr, formData.question, ipfsResult?.cid)
+            console.log('Market saved with hash:', hashStr)
 
             setTxResult({
                 txId,

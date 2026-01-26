@@ -33,7 +33,8 @@ The Leo smart contract includes:
 - `market_questions` mapping: Stores question hash for each market
 
 ## Important Notes
-- **Question Storage**: Full question text is stored locally (localStorage) for display. Only a hash is stored on-chain for verification. To fully decentralize question storage, a backend or IPFS integration would be needed.
+- **Question Storage**: Questions are uploaded to IPFS for decentralized storage. The IPFS CID (encoded as a field) is stored on-chain. When a new browser discovers a market, it fetches the question text from IPFS using the on-chain CID.
+- **IPFS Fallback**: If IPFS upload fails, questions are stored locally with a hash fallback. The system tries multiple IPFS gateways when fetching.
 - **Contract Redeployment**: After modifying `main.leo`, the contract must be redeployed to the Aleo testnet for changes to take effect.
 
 ## Development
