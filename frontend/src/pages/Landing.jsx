@@ -19,42 +19,41 @@ export default function Landing() {
 
     const fetchStats = async () => {
         try {
-            // Get all known markets from local storage
-            const knownMarkets = marketStorage.getMarketIds()
             let totalVolume = 0
-            let validMarkets = 0
+            let marketCount = 0
 
-            // Fetch pool data for each market
-            for (const market of knownMarkets) {
-                try {
-                    const pool = await aleoService.getPool(market.id)
-                    if (pool) {
-                        totalVolume += pool.yesPool + pool.noPool
-                        validMarkets++
-                    }
-                } catch (err) {
-                    console.log('Could not fetch pool for market:', market.id)
-                }
+            // Get market count from blockchain
+            try {
+                marketCount = await aleoService.getMarketCount()
+            } catch (err) {
+                console.log('Could not get market count from chain')
             }
 
-            // Also try to discover markets from on-chain market count
+            // Get all markets to calculate total volume
             try {
-                const onChainCount = await aleoService.getMarketCount()
-                if (onChainCount > validMarkets) {
-                    validMarkets = onChainCount
+                const markets = await aleoService.getAllMarkets()
+                for (const market of markets) {
+                    if (market && market.totalPool !== undefined && !isNaN(market.totalPool)) {
+                        totalVolume += market.totalPool
+                    }
+                }
+                // Update market count if we got more data
+                if (markets.length > marketCount) {
+                    marketCount = markets.length
                 }
             } catch (err) {
-                console.log('Could not fetch market count from chain')
+                console.log('Could not fetch market details:', err)
             }
 
+            console.log('Stats calculated:', { totalVolume, marketCount })
             setStats({
-                totalVolume,
-                totalMarkets: Math.max(validMarkets, knownMarkets.length),
+                totalVolume: isNaN(totalVolume) ? 0 : totalVolume,
+                totalMarkets: marketCount,
                 isLoading: false
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
-            setStats(prev => ({ ...prev, isLoading: false }))
+            setStats({ totalVolume: 0, totalMarkets: 0, isLoading: false })
         }
     }
 
