@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
 import { ALEO_CONFIG, getExplorerUrl } from '../config'
@@ -11,6 +11,59 @@ export default function BetForm({ market, onBetPlaced }) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
     const [txStatus, setTxStatus] = useState(null)
+    const [walletBalance, setWalletBalance] = useState(null)
+    const [balanceLoading, setBalanceLoading] = useState(false)
+    const [balanceWarning, setBalanceWarning] = useState('')
+
+    // Fetch wallet balance when connected
+    useEffect(() => {
+        const fetchBalance = async () => {
+            if (!connected || !publicKey) {
+                setWalletBalance(null)
+                return
+            }
+            
+            setBalanceLoading(true)
+            try {
+                const response = await fetch(
+                    `https://api.explorer.provable.com/v1/testnet/address/${publicKey}/balance/public`
+                )
+                if (response.ok) {
+                    const balance = await response.json()
+                    setWalletBalance(balance)
+                } else {
+                    setWalletBalance(0)
+                }
+            } catch (err) {
+                console.error('Error fetching balance:', err)
+                setWalletBalance(null)
+            } finally {
+                setBalanceLoading(false)
+            }
+        }
+        
+        fetchBalance()
+    }, [connected, publicKey])
+
+    // Check if balance is sufficient when amount changes
+    useEffect(() => {
+        if (walletBalance === null || !amount) {
+            setBalanceWarning('')
+            return
+        }
+        
+        const betAmount = parseInt(amount) || 0
+        const totalNeeded = betAmount + ALEO_CONFIG.fees.placeBet
+        
+        if (walletBalance < totalNeeded) {
+            const shortfall = totalNeeded - walletBalance
+            setBalanceWarning(
+                `Insufficient balance. You need ${totalNeeded.toLocaleString()} microcredits (${betAmount.toLocaleString()} bet + ${ALEO_CONFIG.fees.placeBet.toLocaleString()} fee). You're short by ${shortfall.toLocaleString()} microcredits.`
+            )
+        } else {
+            setBalanceWarning('')
+        }
+    }, [amount, walletBalance])
 
     const handlePlaceBet = async () => {
         if (!connected) {
@@ -27,6 +80,15 @@ export default function BetForm({ market, onBetPlaced }) {
         if (!betAmount || betAmount <= 0) {
             setError('Please enter a valid amount')
             return
+        }
+
+        // Check balance before proceeding
+        if (walletBalance !== null) {
+            const totalNeeded = betAmount + ALEO_CONFIG.fees.placeBet
+            if (walletBalance < totalNeeded) {
+                setError(`Insufficient balance. You need ${totalNeeded.toLocaleString()} microcredits but only have ${walletBalance.toLocaleString()}. Please add more ALEO to your wallet.`)
+                return
+            }
         }
 
         setIsLoading(true)
@@ -101,6 +163,39 @@ export default function BetForm({ market, onBetPlaced }) {
                 <span className="privacy-indicator private">Private Bet</span>
                 Place Your Bet
             </h3>
+
+            {connected && (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 'var(--spacing-md)',
+                    padding: 'var(--spacing-sm)',
+                    background: 'var(--color-bg-tertiary)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.85rem'
+                }}>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Wallet Balance:</span>
+                    <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                        {balanceLoading ? 'Loading...' : 
+                         walletBalance !== null ? `${walletBalance.toLocaleString()} microcredits` : 'Unable to fetch'}
+                    </span>
+                </div>
+            )}
+
+            {balanceWarning && !error && (
+                <div style={{
+                    color: '#f59e0b',
+                    marginBottom: 'var(--spacing-md)',
+                    padding: 'var(--spacing-sm)',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    fontSize: '0.85rem'
+                }}>
+                    {balanceWarning}
+                </div>
+            )}
 
             {error && (
                 <div style={{
