@@ -1,9 +1,10 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "web", "rust-stable"]
 [agent]
 expertMode = true
 
 [nix]
 channel = "stable-25_05"
+packages = ["openssl", "pkg-config"]
 
 [workflows]
 runButton = "Project"
