@@ -19,6 +19,9 @@ export const ALEO_CONFIG = {
     mappings: {
         markets: 'markets',
         pools: 'pools',
+        marketCount: 'market_count',
+        marketIds: 'market_ids',
+        marketQuestions: 'market_questions',
     },
 }
 

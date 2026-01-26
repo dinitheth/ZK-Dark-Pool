@@ -43,6 +43,14 @@ program dark_pool_market.aleo {
 
     mapping markets: field => MarketInfo;
     mapping pools: field => PoolState;
+    
+    // Market registry for discoverability
+    // market_count stores the total number of markets (key 0u64)
+    mapping market_count: u64 => u64;
+    // market_ids maps sequential index to market_id for enumeration
+    mapping market_ids: u64 => field;
+    // market_questions stores a hash of the question for each market
+    mapping market_questions: field => field;
 
     // ============================================
     // CONSTRUCTOR
@@ -57,17 +65,20 @@ program dark_pool_market.aleo {
     // ============================================
 
     // Create a new prediction market
+    // question_hash is a hash of the question text for on-chain storage
     async transition create_market(
         public market_id: field,
         public resolution_height: u32,
+        public question_hash: field,
     ) -> Future {
         // self.signer is the user who originated the call (safer than self.caller for ownership).
-        return finalize_create_market(market_id, resolution_height, self.signer);
+        return finalize_create_market(market_id, resolution_height, question_hash, self.signer);
     }
 
     async function finalize_create_market(
         market_id: field,
         resolution_height: u32,
+        question_hash: field,
         creator: address,
     ) {
         // Ensure market doesn't exist
@@ -91,6 +102,17 @@ program dark_pool_market.aleo {
 
         Mapping::set(markets, market_id, market);
         Mapping::set(pools, market_id, pool);
+        
+        // Store question hash for discoverability
+        Mapping::set(market_questions, market_id, question_hash);
+        
+        // Add to market registry
+        // Use contains + get pattern since get_or_use may not be available
+        let current_count: u64 = Mapping::contains(market_count, 0u64) 
+            ? Mapping::get(market_count, 0u64) 
+            : 0u64;
+        Mapping::set(market_ids, current_count, market_id);
+        Mapping::set(market_count, 0u64, current_count + 1u64);
     }
 
     // Place a private bet (creates a private record + updates public pool)

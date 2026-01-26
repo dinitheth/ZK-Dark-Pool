@@ -229,13 +229,103 @@ class AleoService {
      * Build transaction inputs for create_market
      * @param {string} marketId - Market ID
      * @param {number} resolutionHeight - Block height for resolution
+     * @param {string} questionHash - Hash of the question text
      * @returns {Array<string>}
      */
-    buildCreateMarketInputs(marketId, resolutionHeight) {
+    buildCreateMarketInputs(marketId, resolutionHeight, questionHash) {
         return [
             `${marketId}field`,
             `${resolutionHeight}u32`,
+            `${questionHash}field`,
         ]
+    }
+    
+    /**
+     * Get total market count from on-chain registry
+     * @returns {Promise<number>}
+     */
+    async getMarketCount() {
+        try {
+            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketCount, '0u64')
+            if (!value) return 0
+            // Parse u64 value
+            const match = value.match(/(\d+)u64/)
+            return match ? parseInt(match[1]) : 0
+        } catch (error) {
+            console.error('Error getting market count:', error)
+            return 0
+        }
+    }
+    
+    /**
+     * Get market ID at a specific index in the registry
+     * @param {number} index - Index in the registry
+     * @returns {Promise<string|null>}
+     */
+    async getMarketIdAtIndex(index) {
+        try {
+            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketIds, `${index}u64`)
+            if (!value) return null
+            // Parse field value
+            const match = value.match(/(\d+)field/)
+            return match ? match[1] : null
+        } catch (error) {
+            console.error(`Error getting market ID at index ${index}:`, error)
+            return null
+        }
+    }
+    
+    /**
+     * Get question hash for a market
+     * @param {string} marketId - Market ID
+     * @returns {Promise<string|null>}
+     */
+    async getMarketQuestionHash(marketId) {
+        try {
+            const key = String(marketId).includes('field') ? marketId : `${marketId}field`
+            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketQuestions, key)
+            if (!value) return null
+            const match = value.match(/(\d+)field/)
+            return match ? match[1] : null
+        } catch (error) {
+            console.error(`Error getting question hash for market ${marketId}:`, error)
+            return null
+        }
+    }
+    
+    /**
+     * Fetch all markets from on-chain registry
+     * @returns {Promise<Array>}
+     */
+    async getAllMarkets() {
+        try {
+            const count = await this.getMarketCount()
+            console.log('Total markets on-chain:', count)
+            
+            if (count === 0) return []
+            
+            const markets = []
+            for (let i = 0; i < count; i++) {
+                const marketId = await this.getMarketIdAtIndex(i)
+                if (marketId) {
+                    const marketInfo = await this.getMarket(marketId)
+                    const poolState = await this.getPool(marketId)
+                    const questionHash = await this.getMarketQuestionHash(marketId)
+                    
+                    markets.push({
+                        id: marketId,
+                        questionHash: questionHash,
+                        ...marketInfo,
+                        ...poolState,
+                    })
+                }
+            }
+            
+            return markets
+        } catch (error) {
+            console.error('Error fetching all markets:', error)
+            return []
+        }
     }
 
     /**

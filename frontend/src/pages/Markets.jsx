@@ -82,67 +82,51 @@ export default function Markets() {
             }
 
             try {
-                console.log('Fetching real markets from blockchain...')
-                const trackedMarketIDs = marketStorage.getMarketIds()
-                console.log('Tracked markets:', trackedMarketIDs)
-
-                if (trackedMarketIDs.length === 0) {
-                    console.log('No markets tracked yet. Create one to see it here!')
-                    setMarkets([])
-                    setIsLoading(false)
-                    return
-                }
-
-                // Fetch each market's data from blockchain
-                const marketPromises = trackedMarketIDs.map(async (tracked) => {
-                    try {
-                        const marketInfo = await aleoService.getMarket(tracked.id)
-                        const poolState = await aleoService.getPool(tracked.id)
-
-                        if (!marketInfo || !poolState) {
-                            console.log(`Market ${tracked.id} pending confirmation on blockchain...`)
-                            // Return pending market with local data
-                            return {
-                                id: tracked.id,
-                                question: tracked.question,
-                                pending: true,
-                                resolved: false,
-                                totalYes: 0,
-                                totalNo: 0,
-                                totalPool: 0,
-                                createdAt: tracked.createdAt,
-                            }
-                        }
-
-                        return {
-                            id: tracked.id,
-                            question: tracked.question,
-                            pending: false,
-                            resolutionHeight: marketInfo.resolutionHeight,
-                            resolved: marketInfo.resolved,
-                            winningOutcome: marketInfo.winningOutcome,
-                            totalYes: poolState.totalYes,
-                            totalNo: poolState.totalNo,
-                            totalPool: poolState.totalPool,
-                            creator: marketInfo.creator,
-                        }
-                    } catch (error) {
-                        console.error(`Error fetching market ${tracked.id}:`, error)
-                        // Return pending market on error
-                        return {
-                            id: tracked.id,
-                            question: tracked.question,
-                            pending: true,
-                            resolved: false,
-                            totalYes: 0,
-                            totalNo: 0,
-                        }
+                console.log('Fetching markets from blockchain registry...')
+                
+                // First, try to fetch from on-chain registry
+                const onChainMarkets = await aleoService.getAllMarkets()
+                console.log('On-chain markets:', onChainMarkets)
+                
+                // Also get locally tracked markets (for pending ones not yet on-chain)
+                const localMarkets = marketStorage.getMarketIds()
+                console.log('Local tracked markets:', localMarkets)
+                
+                // Merge on-chain and local markets, preferring on-chain data
+                const onChainIds = new Set(onChainMarkets.map(m => String(m.id)))
+                
+                // Add local markets that aren't on-chain yet (pending confirmation)
+                const pendingMarkets = localMarkets
+                    .filter(local => !onChainIds.has(String(local.id)))
+                    .map(local => ({
+                        id: local.id,
+                        question: local.question,
+                        pending: true,
+                        resolved: false,
+                        totalYes: 0,
+                        totalNo: 0,
+                        totalPool: 0,
+                        createdAt: local.createdAt,
+                    }))
+                
+                // For on-chain markets, try to get question from local storage if available
+                const enrichedOnChainMarkets = onChainMarkets.map(market => {
+                    const localMatch = localMarkets.find(l => String(l.id) === String(market.id))
+                    return {
+                        ...market,
+                        question: localMatch?.question || `Market #${market.id}`,
+                        pending: false,
                     }
                 })
-
-                const loadedMarkets = await Promise.all(marketPromises)
-                console.log('Loaded markets:', loadedMarkets)
-                setMarkets(loadedMarkets)
+                
+                const allMarkets = [...enrichedOnChainMarkets, ...pendingMarkets]
+                console.log('All markets:', allMarkets)
+                
+                if (allMarkets.length === 0) {
+                    console.log('No markets found. Create one to get started!')
+                }
+                
+                setMarkets(allMarkets)
 
             } catch (error) {
                 console.error('Error loading markets:', error)

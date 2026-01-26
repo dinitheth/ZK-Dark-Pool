@@ -35,6 +35,17 @@ export default function CreateMarket() {
         }
         return Math.abs(hash) % 1000000000 // Keep it in a reasonable range for field
     }
+    
+    // Generate a question hash for on-chain storage
+    const generateQuestionHash = (question) => {
+        let hash = 0
+        for (let i = 0; i < question.length; i++) {
+            const char = question.charCodeAt(i)
+            hash = ((hash << 7) - hash) + char
+            hash = hash & hash
+        }
+        return Math.abs(hash) % 10000000000 // Different range to differentiate from marketId
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -54,8 +65,9 @@ export default function CreateMarket() {
         setTxStatus('Generating market ID...')
 
         try {
-            // Generate market ID from question
+            // Generate market ID and question hash from question
             const marketId = generateMarketId(formData.question)
+            const questionHash = generateQuestionHash(formData.question)
 
             // IMPORTANT: Contract uses resolution_height (block height), not timestamp
             // Estimate: ~5 seconds per block on testnet
@@ -68,8 +80,8 @@ export default function CreateMarket() {
 
             setTxStatus('Building transaction...')
 
-            // Build transaction inputs
-            const inputs = aleoService.buildCreateMarketInputs(marketId, resolutionHeight)
+            // Build transaction inputs (now includes questionHash for on-chain storage)
+            const inputs = aleoService.buildCreateMarketInputs(marketId, resolutionHeight, questionHash)
 
             setTxStatus('Requesting wallet signature...')
 
@@ -87,11 +99,11 @@ export default function CreateMarket() {
             })
 
             console.log('Market created:', txId)
-            setTxStatus('Transaction submitted!')
+            setTxStatus('Transaction submitted! Market will appear in the list once confirmed on blockchain.')
 
-            // Save to market tracking
+            // Also save locally for immediate feedback (blockchain confirmation takes time)
             marketStorage.addMarket(marketId, formData.question)
-            console.log('Market saved to storage')
+            console.log('Market saved to local storage for immediate display')
 
             setTxResult({
                 txId,
