@@ -1,7 +1,7 @@
 // ZK Dark Pool Prediction Market (Leo 3.4.0)
 // Privacy-preserving prediction market on Aleo
 
-program dark_pool_market.aleo {
+program dark_pool_marketv1.aleo {
 
     // ============================================
     // RECORDS (Private State)
@@ -106,11 +106,8 @@ program dark_pool_market.aleo {
         // Store question hash for discoverability
         Mapping::set(market_questions, market_id, question_hash);
         
-        // Add to market registry
-        // Use contains + get pattern since get_or_use may not be available
-        let current_count: u64 = Mapping::contains(market_count, 0u64) 
-            ? Mapping::get(market_count, 0u64) 
-            : 0u64;
+        // Add to market registry using get_or_use for safe default value
+        let current_count: u64 = Mapping::get_or_use(market_count, 0u64, 0u64);
         Mapping::set(market_ids, current_count, market_id);
         Mapping::set(market_count, 0u64, current_count + 1u64);
     }

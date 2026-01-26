@@ -36,7 +36,10 @@ The Leo smart contract includes:
 - **Question Storage**: Questions are uploaded to IPFS when creating markets. A deterministic hash of the question is stored on-chain. The IPFS service maintains a local index mapping hashes to questions and CIDs.
 - **Cross-Browser Limitation**: Currently, question text can only be retrieved if the browser has previously seen the market (stored in local index). Full cross-browser discovery of question text would require either storing the IPFS CID on-chain (which exceeds field size limits) or a public indexer service.
 - **Current Workaround**: Users can use "Track Existing" to manually add markets with their question text. The on-chain data (market ID, pool sizes, resolution status) is always fully discoverable.
-- **Contract Redeployment**: After modifying `main.leo`, the contract must be redeployed to the Aleo testnet for changes to take effect.
+- **Contract Redeployment**: After modifying `main.leo`, the contract must be redeployed to the Aleo testnet for changes to take effect. Programs on Aleo are immutable, so new versions require a new program name (e.g., `dark_pool_marketv2.aleo`).
+
+## Recent Fix (Jan 26, 2026)
+Fixed a bug in the Leo contract where `Mapping::contains ? Mapping::get : default` pattern was causing transaction rejections. Changed to use `Mapping::get_or_use` which is the proper Leo pattern for safe default values in finalize functions.
 
 ## Backend Indexer
 A simple Express backend runs on port 3001 and provides question indexing:
