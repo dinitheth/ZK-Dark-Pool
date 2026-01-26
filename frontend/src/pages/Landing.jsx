@@ -92,14 +92,14 @@ export default function Landing() {
                     <div className="hero-stats">
                         <div className="hero-stat">
                             <span className="hero-stat-value">
-                                {stats.isLoading ? '...' : `${formatVolume(stats.totalVolume)} ALEO`}
+                                {stats.isLoading ? 'Loading' : `${formatVolume(stats.totalVolume)} ALEO`}
                             </span>
                             <span className="hero-stat-label">Total Volume</span>
                         </div>
                         <div className="hero-stat-divider"></div>
                         <div className="hero-stat">
                             <span className="hero-stat-value">
-                                {stats.isLoading ? '...' : stats.totalMarkets}
+                                {stats.isLoading ? 'Loading' : stats.totalMarkets}
                             </span>
                             <span className="hero-stat-label">Total Markets</span>
                         </div>
