@@ -122,6 +122,13 @@ Privacy-preserving markets for hedging personal or business risks without exposi
 | Consensus | AleoBFT | Proof-of-stake consensus |
 | Cryptography | Marlin ZK-SNARKs | Zero-knowledge proofs |
 
+### Backend Layer
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Runtime | Node.js (Vercel Serverless) | API execution |
+| Database | MongoDB Atlas | Persistent question index |
+| API | Express.js | Request handling |
+
 ### Frontend Layer
 | Component | Technology | Purpose |
 |-----------|------------|---------|
@@ -129,6 +136,7 @@ Privacy-preserving markets for hedging personal or business risks without exposi
 | Build Tool | Vite | Fast development server |
 | Routing | React Router v6 | SPA navigation |
 | Styling | CSS Variables | Theming and dark mode |
+| Hosting | Vercel | Global CDN |
 
 ### Wallet Integration
 | Component | Technology | Purpose |
@@ -158,48 +166,34 @@ Privacy-preserving markets for hedging personal or business risks without exposi
 |  |  +------------+  +------------+  +------------+  +--------+ |  |
 |  +------------------------------------------------------------+  |
 +------------------------------------------------------------------+
-                              |
-                              v
-+------------------------------------------------------------------+
-|                      WALLET INTEGRATION                           |
-|  +------------------------------------------------------------+  |
-|  |              Leo Wallet Adapter (TestnetBeta)               |  |
-|  |  +------------------+  +------------------+  +------------+ |  |
-|  |  | Connect/Decrypt  |  |  Sign Transactions |  | View Key | |  |
-|  +------------------------------------------------------------+  |
-+------------------------------------------------------------------+
-                              |
-                              v
-+------------------------------------------------------------------+
-|                      ALEO BLOCKCHAIN                              |
-|  +------------------------------------------------------------+  |
-|  |              dark_pool_market.aleo Program                  |  |
-|  |                                                             |  |
-|  |  +------------------+     +------------------+              |  |
-|  |  |  Public Mappings |     |  Private Records |              |  |
-|  |  |  - markets       |     |  - Bet (encrypted)|             |  |
-|  |  |  - pools         |     |                   |             |  |
-|  |  +------------------+     +------------------+              |  |
-|  |                                                             |  |
-|  |  +------------------+     +------------------+              |  |
-|  |  |   Transitions    |     |   ZK Circuits    |              |  |
-|  |  | - create_market  |     | - Proof Gen      |              |  |
-|  |  | - place_bet      |     | - Verification   |              |  |
-|  |  | - resolve_market |     |                  |              |  |
-|  |  | - claim_winnings |     |                  |              |  |
-|  |  +------------------+     +------------------+              |  |
-|  +------------------------------------------------------------+  |
-+------------------------------------------------------------------+
-                              |
-                              v
-+------------------------------------------------------------------+
-|                      EXTERNAL SERVICES                            |
-|  +------------------+     +------------------+                    |
-|  |  Provable API    |     | Provable Explorer |                   |
-|  |  - Mapping reads |     | - TX verification |                   |
-|  |  - Block height  |     | - Address lookup  |                   |
-|  +------------------+     +------------------+                    |
-+------------------------------------------------------------------+
+    |                                           |
+    v                                           v
++-----------------------+           +-----------------------------+
+|   WALLET INTEGRATION  |           |      BACKEND SERVICES       |
+|  (Leo Wallet Adapter) |           |   (Vercel / Node.js API)    |
+|                       |           |                             |
+|  +-----------------+  |           |  +-----------------------+  |
+|  | Sign / Decrypt  |  |           |  |   Indexer Endpoints   |  |
+|  +-----------------+  |           |  | - POST /index         |  |
++-----------------------+           |  | - GET /questions      |  |
+    |                               |  +-----------------------+  |
+    v                               +-----------------------------+
++-----------------------+                       |
+|    ALEO BLOCKCHAIN    |                       v
+| (dark_pool_market.aleo)|          +-----------------------------+
+|                       |           |          DATABASE           |
+|  +-----------------+  |           |      (MongoDB Atlas)        |
+|  | Public Mappings |  |           |                             |
+|  | Private Records |  |           |  +-----------------------+  |
+|  +-----------------+  |           |  |   Questions Index     |  |
++-----------------------+           |  |   Hash -> Details     |  |
+    |                               |  +-----------------------+  |
+    v                               +-----------------------------+
++-----------------------+
+|   EXTERNAL SERVICES   |
+| (Provable API / Expl) |
++-----------------------+
+
 ```
 
 ### Data Flow
@@ -364,24 +358,25 @@ export const ALEO_CONFIG = {
 
 ## Deployment
 
-### Netlify
+### 1. Database (MongoDB Atlas)
+- Create a Cluster (M0 Free Tier).
+- Create a Database User.
+- Whitelist IP `0.0.0.0/0` (Network Access).
+- Get Connection String.
 
-1. Connect repository to Netlify
-2. Set build settings:
-   - Base directory: `Aleo/frontend`
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-3. Deploy
+### 2. Backend (Vercel)
+- **Framework Preset**: Other
+- **Root Directory**: `backend`
+- **Environment Variables**:
+    - `MONGODB_URI`: Your MongoDB Connection String.
 
-### Vercel
-
-1. Import project to Vercel
-2. Set root directory to `Aleo/frontend`
-3. Framework preset: Vite
-4. Deploy
+### 3. Frontend (Vercel)
+- **Framework Preset**: Vite
+- **Root Directory**: `frontend`
+- **Environment Variables**:
+    - `VITE_INDEXER_URL`: The URL of your deployed Backend (e.g., `https://project-backend.vercel.app`).
 
 ### Smart Contract
-
 The Leo program is deployed on Aleo Testnet:
 - Program ID: `dark_pool_market.aleo`
 - Network: Testnet
@@ -415,24 +410,24 @@ The Leo program is deployed on Aleo Testnet:
 ## Project Structure
 
 ```
-Aleo/
-├── dark_pool_market/
+ZK-Dark-Pool/
+├── Leo Programs/             # Aleo Smart Contracts
+│   ├── dark_pool_market/
+│   │   ├── src/
+│   │   │   └── main.leo
+│   │   └── program.json
+├── frontend/                 # React Application
 │   ├── src/
-│   │   └── main.leo          # Leo smart contract
-│   └── program.json          # Program configuration
-└── frontend/
-    ├── src/
-    │   ├── components/       # Reusable UI components
-    │   ├── pages/            # Route pages
-    │   ├── hooks/            # Custom React hooks
-    │   ├── services/         # Blockchain service layer
-    │   ├── styles/           # CSS stylesheets
-    │   ├── config.js         # App configuration
-    │   ├── main.jsx          # Entry point
-    │   └── App.jsx           # Root component
-    ├── package.json
-    ├── vite.config.js
-    └── netlify.toml
+│   │   ├── components/       # Reusable UI components
+│   │   ├── pages/            # Route pages
+│   │   ├── services/         # API & Blockchain services
+│   │   ├── config.js         # App configuration
+│   │   └── main.jsx          # Entry point
+│   └── vite.config.js
+└── backend/                  # Express API (Serverless)
+    ├── server.js             # API Logic (Mongoose)
+    ├── vercel.json           # Vercel Configuration
+    └── package.json
 ```
 
 ---

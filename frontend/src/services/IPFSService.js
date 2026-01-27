@@ -5,7 +5,7 @@ const IPFS_GATEWAYS = [
     'https://dweb.link/ipfs/',
 ]
 
-const INDEXER_URL = ''
+const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || ''
 
 class IPFSService {
     async hashQuestion(question) {
@@ -21,7 +21,7 @@ class IPFSService {
     async uploadQuestion(questionData) {
         const question = questionData.question
         const hash = await this.hashQuestion(question)
-        
+
         let ipfsCid = null
 
         try {
@@ -36,7 +36,7 @@ class IPFSService {
             const blob = new Blob([content], { type: 'application/json' })
             const formData = new FormData()
             formData.append('file', blob, 'question.json')
-            
+
             const response = await fetch('https://api.web3.storage/upload', {
                 method: 'POST',
                 body: formData,
@@ -66,7 +66,7 @@ class IPFSService {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hash, question, ipfsCid, marketId })
             })
-            
+
             if (response.ok) {
                 console.log('Question indexed successfully')
                 return true
@@ -79,7 +79,7 @@ class IPFSService {
 
     async fetchQuestion(questionHash) {
         const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
-        
+
         try {
             const response = await fetch(`${INDEXER_URL}/api/question/${hashStr}`)
             if (response.ok) {
@@ -95,17 +95,17 @@ class IPFSService {
 
     async fetchQuestionWithCid(questionHash) {
         const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
-        
+
         try {
             const response = await fetch(`${INDEXER_URL}/api/question/${hashStr}`)
             if (response.ok) {
                 const data = await response.json()
-                
+
                 if (data.ipfsCid && !data.question) {
                     const ipfsQuestion = await this.fetchFromIPFS(data.ipfsCid)
                     if (ipfsQuestion) return ipfsQuestion
                 }
-                
+
                 return data.question
             }
         } catch (error) {
