@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
-import { ALEO_CONFIG, getExplorerUrl } from '../config'
+import { ALEO_CONFIG, getExplorerUrl, API_BASE_URL } from '../config'
 import useAleo from '../hooks/useAleo'
 
 export default function Portfolio() {
     const { connected, publicKey, requestRecords } = useWallet()
     const { programDeployed, isCheckingProgram } = useAleo()
     const [bets, setBets] = useState([])
+    const [marketQuestions, setMarketQuestions] = useState({})
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState(null)
+
+    // Helper to clean market ID (remove .private suffix and field type)
+    const cleanMarketId = (rawId) => {
+        if (!rawId) return ''
+        return rawId.replace('field', '').replace('.private', '').replace('.public', '')
+    }
 
     useEffect(() => {
         const loadBets = async () => {
@@ -29,18 +36,34 @@ export default function Portfolio() {
                         const records = await requestRecords(ALEO_CONFIG.programId)
                         console.log('Fetched records:', records)
 
-                        // Parse Bet records
+                        // Parse Bet records and clean market IDs
                         const betRecords = records
                             .filter(r => r.recordName === 'Bet')
                             .map(r => ({
                                 id: r.id || Math.random().toString(),
-                                marketId: r.data?.market_id?.replace('field', ''),
-                                outcome: parseInt(r.data?.outcome?.replace('u8', '')) || 0,
-                                amount: parseInt(r.data?.amount?.replace('u64', '')) || 0,
+                                marketId: cleanMarketId(r.data?.market_id),
+                                outcome: parseInt(r.data?.outcome?.replace('u8', '').replace('.private', '')) || 0,
+                                amount: parseInt(r.data?.amount?.replace('u64', '').replace('.private', '')) || 0,
                                 status: 'pending',
                             }))
 
                         setBets(betRecords)
+
+                        // Fetch questions for all market IDs
+                        const uniqueMarketIds = [...new Set(betRecords.map(b => b.marketId).filter(Boolean))]
+                        const questions = {}
+                        await Promise.all(uniqueMarketIds.map(async (marketId) => {
+                            try {
+                                const res = await fetch(`${API_BASE_URL}/api/question/${marketId}`)
+                                if (res.ok) {
+                                    const data = await res.json()
+                                    questions[marketId] = data.question
+                                }
+                            } catch (e) {
+                                console.log('Failed to fetch question for market:', marketId)
+                            }
+                        }))
+                        setMarketQuestions(questions)
                     } catch (recordError) {
                         console.log('Could not fetch records, using empty state:', recordError)
                         setBets([])
@@ -191,7 +214,9 @@ export default function Portfolio() {
                             className="bet-list-item"
                             style={{ textDecoration: 'none', color: 'inherit' }}
                         >
-                            <div className="bet-list-item-market">Market #{bet.marketId}</div>
+                            <div className="bet-list-item-market">
+                                {marketQuestions[bet.marketId] || `Market #${bet.marketId}`}
+                            </div>
                             <div className={`bet-list-item-outcome ${bet.outcome === 1 ? 'yes' : 'no'}`}>
                                 {bet.outcome === 1 ? 'YES' : 'NO'}
                             </div>

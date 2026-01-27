@@ -1,3 +1,6 @@
+// Backend API Base URL
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 // Aleo Network Configuration
 export const ALEO_CONFIG = {
     // Network settings
