@@ -129,18 +129,35 @@ export default function BetForm({ market, onBetPlaced }) {
 
             setTxStatus('Requesting wallet signature...')
 
-            // Use Leo Wallet's Transaction.createTransaction helper
-            const aleoTransaction = Transaction.createTransaction(
-                publicKey,
-                WalletAdapterNetwork.TestnetBeta,
-                ALEO_CONFIG.programId,
-                'place_bet',
-                inputs,
-                ALEO_CONFIG.fees.placeBet,
-                false  // feePrivate
-            )
-
-            const txId = await requestTransaction(aleoTransaction)
+            // Try Transaction.createTransaction first (newer format)
+            let txId;
+            try {
+                const aleoTransaction = Transaction.createTransaction(
+                    publicKey,
+                    WalletAdapterNetwork.TestnetBeta,
+                    ALEO_CONFIG.programId,
+                    'place_bet',
+                    inputs,
+                    ALEO_CONFIG.fees.placeBet,
+                    false  // feePrivate
+                )
+                console.log('Transaction object:', JSON.stringify(aleoTransaction, null, 2))
+                txId = await requestTransaction(aleoTransaction)
+            } catch (firstError) {
+                console.log('First format failed, trying direct object format:', firstError)
+                // Fallback to direct object format (older wallets)
+                txId = await requestTransaction({
+                    address: publicKey,
+                    chainId: 'testnetbeta',
+                    transitions: [{
+                        program: ALEO_CONFIG.programId,
+                        functionName: 'place_bet',
+                        inputs: inputs,
+                    }],
+                    fee: ALEO_CONFIG.fees.placeBet,
+                    feePrivate: false,
+                })
+            }
 
             console.log('Bet approved by wallet:', txId)
 
@@ -161,7 +178,7 @@ export default function BetForm({ market, onBetPlaced }) {
 
         } catch (err) {
             console.error('Error placing bet:', err)
-            const errorMsg = err.message?.toLowerCase() || ''
+            const errorMsg = (err.message || '').toLowerCase()
 
             // Handle specific wallet errors with friendly messages
             if (errorMsg.includes('user rejected') || errorMsg.includes('cancelled') || errorMsg.includes('denied')) {
@@ -172,8 +189,12 @@ export default function BetForm({ market, onBetPlaced }) {
                 setError('Not enough ALEO for transaction fees. Please top up your wallet.')
             } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
                 setError('Network issue detected. Please check your connection and try again.')
+            } else if (errorMsg.includes('invalid_params') || errorMsg.includes('failed to send')) {
+                setError('Wallet error: Please ensure your Leo Wallet is connected to TestnetBeta network and the program exists. Try refreshing the page.')
+            } else if (errorMsg.includes('program') || errorMsg.includes('not found')) {
+                setError('The prediction market program may not be deployed on this network. Please check your wallet network settings.')
             } else {
-                setError('Something went wrong. Please make sure your wallet has enough ALEO and try again.')
+                setError(`Transaction failed: ${err.message || 'Unknown error'}. Please ensure your wallet is on TestnetBeta.`)
             }
             setTxStatus(null)
         } finally {
