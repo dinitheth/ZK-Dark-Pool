@@ -373,11 +373,49 @@
 
 @media (max-width: 640px) {
     .hero-title {
-        font-size: 2.5rem;
+        font-size: 2rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .hero-actions .btn {
+        width: 100%;
+    }
+
+    .hero-stats {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .hero-stat-divider {
+        display: none;
+    }
+
+    .hero-card {
+        padding: var(--spacing-md);
+    }
+
+    .hero-card h3 {
+        font-size: 1.1rem;
     }
 
     .features-grid {
         grid-template-columns: 1fr;
+    }
+
+    .feature-card {
+        padding: var(--spacing-md);
+    }
+
+    .section-title {
+        font-size: 1.5rem;
     }
 
     .steps {
@@ -389,5 +427,50 @@
         width: 2px;
         height: 40px;
         margin: 0;
+    }
+
+    .step {
+        padding: var(--spacing-md);
+    }
+
+    .cta h2 {
+        font-size: 1.5rem;
+    }
+
+    .cta p {
+        font-size: 1rem;
+    }
+
+    .network-notice {
+        flex-direction: column;
+        font-size: 0.8rem;
+        padding: var(--spacing-sm);
+    }
+
+    .how-it-works {
+        margin: 0 calc(-1 * var(--spacing-md));
+        padding-left: var(--spacing-md);
+        padding-right: var(--spacing-md);
+    }
+}
+
+/* Very small phones */
+@media (max-width: 375px) {
+    .hero-title {
+        font-size: 1.75rem;
+    }
+
+    .hero-badge {
+        font-size: 0.65rem;
+    }
+
+    .hero-card-odds {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .btn-lg {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 0.9rem;
     }
 }

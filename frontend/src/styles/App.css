@@ -698,28 +698,289 @@
 }
 
 /* ============================================
-   Responsive
+   Responsive - Mobile First
    ============================================ */
 
+/* Tablet and below */
+@media (max-width: 1024px) {
+    .main-content {
+        padding: var(--spacing-lg);
+    }
+
+    .markets-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: var(--spacing-md);
+    }
+}
+
+/* Mobile devices */
 @media (max-width: 768px) {
+    :root {
+        font-size: 15px;
+    }
+
+    .main-content {
+        padding: var(--spacing-md);
+    }
+
+    /* Header */
     .header {
         flex-direction: column;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .header-logo h1 {
+        font-size: 1.1rem;
     }
 
     .header-nav {
         order: 3;
         width: 100%;
         justify-content: center;
+        gap: var(--spacing-xs);
+        flex-wrap: wrap;
     }
 
+    .header-nav a {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.85rem;
+    }
+
+    .header-right {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--spacing-xs);
+    }
+
+    .header-actions {
+        gap: var(--spacing-sm);
+    }
+
+    .network-status {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+
+    .network-status .status-text {
+        display: none;
+    }
+
+    .wallet-button,
+    .wallet-adapter-button {
+        font-size: 0.8rem !important;
+        padding: 0 var(--spacing-sm) !important;
+        height: 36px !important;
+    }
+
+    /* Markets Header */
+    .markets-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-md);
+    }
+
+    .markets-header h2 {
+        font-size: 1.5rem;
+    }
+
+    /* Markets Grid */
     .markets-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    /* Market Card */
+    .market-card {
+        padding: var(--spacing-md);
+    }
+
+    .market-card-question {
+        font-size: 1rem;
+        margin-right: var(--spacing-sm);
+    }
+
+    .market-card-pool {
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm);
+        flex-wrap: wrap;
+    }
+
+    .pool-stat-value {
+        font-size: 1rem;
+    }
+
+    .market-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+
+    /* Bet Form */
+    .bet-form {
+        padding: var(--spacing-md);
+    }
+
+    .bet-form-title {
+        font-size: 1.1rem;
+        flex-wrap: wrap;
+    }
+
+    .bet-form-outcomes {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .outcome-btn {
+        padding: var(--spacing-md);
+        font-size: 0.95rem;
+    }
+
+    .bet-amount-input input {
+        font-size: 1.25rem;
+    }
+
+    .bet-submit {
+        padding: var(--spacing-md);
+        font-size: 1rem;
+        min-height: 48px;
+    }
+
+    /* Create Market */
+    .create-market-form {
+        padding: 0 var(--spacing-sm);
+    }
+
+    .create-market-form h2 {
+        font-size: 1.5rem;
+    }
+
+    .form-section {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    /* Portfolio */
+    .portfolio-stats {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .portfolio-stat-card {
+        padding: var(--spacing-md);
+    }
+
+    .portfolio-stat-value {
+        font-size: 1.25rem;
+    }
+
+    .bet-list-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md);
+    }
+
+    .bet-list-item-market {
+        width: 100%;
+        font-size: 0.9rem;
+    }
+
+    .bet-list-item-details {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Footer */
+    .footer {
+        padding: var(--spacing-md);
+        font-size: 0.8rem;
+    }
+
+    /* Market Detail Page */
+    .market-detail {
+        padding: var(--spacing-md);
+    }
+
+    .market-detail h1 {
+        font-size: 1.4rem;
+        line-height: 1.4;
+    }
+
+    .market-detail-stats {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    /* Touch-friendly improvements */
+    button, .btn, a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    input, select, textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+    }
+
+    /* Filter buttons */
+    .filter-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: var(--spacing-xs);
+    }
+
+    .filter-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filter-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: var(--spacing-xs) var(--spacing-md);
+    }
+
+    /* Empty State */
+    .empty-state {
+        padding: var(--spacing-xl);
+    }
+
+    .empty-state-icon {
+        font-size: 2rem;
+    }
+}
+
+/* Small phones */
+@media (max-width: 375px) {
+    :root {
+        font-size: 14px;
+    }
+
+    .header-logo h1 {
+        font-size: 1rem;
+    }
+
+    .header-nav a {
+        padding: var(--spacing-xs);
+        font-size: 0.8rem;
+    }
+
+    .market-card-question {
+        font-size: 0.95rem;
     }
 
     .bet-form-outcomes {
         grid-template-columns: 1fr;
+    }
+
+    .portfolio-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .pool-stat {
+        min-width: 0;
     }
 }
 /* ============================================
