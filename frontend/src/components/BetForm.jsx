@@ -25,25 +25,27 @@ export default function BetForm({ market, onBetPlaced }) {
             
             setBalanceLoading(true)
             try {
-                // Try testnetbeta API first (current network)
                 let balance = null
                 
-                // Try the main Aleo RPC
+                // Use the correct Aleo API - query credits.aleo program's account mapping
                 const apis = [
-                    `https://api.explorer.provable.com/v1/testnetbeta/address/${publicKey}/balance/public`,
-                    `https://api.explorer.provable.com/v1/testnet/address/${publicKey}/balance/public`,
-                    `https://api.explorer.aleo.org/v1/testnetbeta/address/${publicKey}/balance/public`
+                    `https://api.explorer.provable.com/v1/testnet/program/credits.aleo/mapping/account/${publicKey}`,
+                    `https://api.explorer.aleo.org/v1/testnet/program/credits.aleo/mapping/account/${publicKey}`,
+                    `https://api.explorer.provable.com/v1/testnetbeta/program/credits.aleo/mapping/account/${publicKey}`
                 ]
                 
                 for (const url of apis) {
                     try {
                         const response = await fetch(url)
                         if (response.ok) {
-                            const data = await response.json()
-                            // API returns microcredits (1 ALEO = 1,000,000 microcredits on Aleo)
-                            balance = typeof data === 'number' ? data : parseInt(data) || 0
-                            console.log('Balance fetched from:', url, 'Raw value:', balance)
-                            break
+                            const data = await response.text()
+                            // API returns format like "123456u64" - extract the number
+                            const match = data.match(/(\d+)u64/)
+                            if (match) {
+                                balance = parseInt(match[1])
+                                console.log('Balance fetched from:', url, 'Raw value:', balance)
+                                break
+                            }
                         }
                     } catch (e) {
                         console.log('API failed:', url)
