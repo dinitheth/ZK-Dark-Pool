@@ -15,7 +15,7 @@ export default function BetForm({ market, onBetPlaced }) {
     const [balanceLoading, setBalanceLoading] = useState(false)
     const [balanceWarning, setBalanceWarning] = useState('')
 
-    // Fetch wallet balance when connected
+    // Fetch wallet balance when connected (try multiple APIs)
     useEffect(() => {
         const fetchBalance = async () => {
             if (!connected || !publicKey) {
@@ -25,15 +25,35 @@ export default function BetForm({ market, onBetPlaced }) {
             
             setBalanceLoading(true)
             try {
-                const response = await fetch(
-                    `https://api.explorer.provable.com/v1/testnet/address/${publicKey}/balance/public`
-                )
-                if (response.ok) {
-                    const balance = await response.json()
-                    setWalletBalance(balance)
-                } else {
-                    setWalletBalance(0)
+                // Try testnetbeta API first (current network)
+                let balance = null
+                
+                // Try the main Aleo RPC
+                const apis = [
+                    `https://api.explorer.provable.com/v1/testnetbeta/address/${publicKey}/balance/public`,
+                    `https://api.explorer.provable.com/v1/testnet/address/${publicKey}/balance/public`,
+                    `https://api.explorer.aleo.org/v1/testnetbeta/address/${publicKey}/balance/public`
+                ]
+                
+                for (const url of apis) {
+                    try {
+                        const response = await fetch(url)
+                        if (response.ok) {
+                            const data = await response.json()
+                            // API returns microcredits (1 ALEO = 1,000,000 microcredits on Aleo)
+                            balance = typeof data === 'number' ? data : parseInt(data) || 0
+                            console.log('Balance fetched from:', url, 'Raw value:', balance)
+                            break
+                        }
+                    } catch (e) {
+                        console.log('API failed:', url)
+                        continue
+                    }
                 }
+                
+                // If balance is 0 or null, set to null so we don't block the user
+                // (they can still try and wallet will reject if truly insufficient)
+                setWalletBalance(balance !== null && balance > 0 ? balance : null)
             } catch (err) {
                 console.error('Error fetching balance:', err)
                 setWalletBalance(null)
@@ -47,7 +67,8 @@ export default function BetForm({ market, onBetPlaced }) {
 
     // Check if balance is sufficient when amount changes
     useEffect(() => {
-        if (walletBalance === null || !amount) {
+        // Only show warning if we have a confirmed balance AND an amount
+        if (walletBalance === null || walletBalance === undefined || !amount) {
             setBalanceWarning('')
             return
         }
@@ -55,7 +76,8 @@ export default function BetForm({ market, onBetPlaced }) {
         const betAmount = parseInt(amount) || 0
         const totalNeeded = betAmount + ALEO_CONFIG.fees.placeBet
         
-        if (walletBalance < totalNeeded) {
+        // Only warn if we have a positive balance that's still insufficient
+        if (walletBalance > 0 && walletBalance < totalNeeded) {
             const shortfall = totalNeeded - walletBalance
             setBalanceWarning(
                 `Insufficient balance. You need ${totalNeeded.toLocaleString()} microcredits (${betAmount.toLocaleString()} bet + ${ALEO_CONFIG.fees.placeBet.toLocaleString()} fee). You're short by ${shortfall.toLocaleString()} microcredits.`
@@ -177,8 +199,9 @@ export default function BetForm({ market, onBetPlaced }) {
                 }}>
                     <span style={{ color: 'var(--color-text-secondary)' }}>Wallet Balance:</span>
                     <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                        {balanceLoading ? 'Loading...' : 
-                         walletBalance !== null ? `${walletBalance.toLocaleString()} microcredits` : 'Unable to fetch'}
+                        {balanceLoading ? 'Checking...' : 
+                         walletBalance !== null ? `${walletBalance.toLocaleString()} microcredits` : 
+                         'Balance check unavailable - wallet will verify'}
                     </span>
                 </div>
             )}
@@ -287,9 +310,13 @@ export default function BetForm({ market, onBetPlaced }) {
             <button
                 className="btn btn-primary bet-submit"
                 onClick={handlePlaceBet}
-                disabled={isLoading || !connected}
+                disabled={isLoading || !connected || !!balanceWarning}
+                style={balanceWarning ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
-                {isLoading ? 'Processing...' : connected ? 'Place Private Bet' : 'Connect Wallet to Bet'}
+                {isLoading ? 'Processing...' : 
+                 !connected ? 'Connect Wallet to Bet' : 
+                 balanceWarning ? 'Insufficient Balance' : 
+                 'Place Private Bet'}
             </button>
 
             <div className="bet-privacy-note">
