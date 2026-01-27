@@ -8,7 +8,7 @@
  * - Caching for performance
  */
 
-import { ALEO_CONFIG } from '../config'
+import { ALEO_CONFIG, API_BASE_URL } from '../config'
 
 class AleoService {
     constructor() {
@@ -210,7 +210,7 @@ class AleoService {
 
     async fetchCachedMarkets() {
         try {
-            const response = await fetch('/api/markets/cached')
+            const response = await fetch(`${API_BASE_URL}/api/markets/cached`)
             if (response.ok) {
                 const data = await response.json()
                 if (data.markets && data.markets.length > 0) {
@@ -228,7 +228,7 @@ class AleoService {
             try {
                 const markets = await this.fetchMarketsFromBlockchain()
                 if (markets.length > 0) {
-                    await fetch('/api/markets/cache', {
+                    await fetch(`${API_BASE_URL}/api/markets/cache`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ markets })
@@ -281,7 +281,7 @@ class AleoService {
         }))
 
         if (markets.length > 0) {
-            fetch('/api/markets/cache', {
+            fetch(`${API_BASE_URL}/api/markets/cache`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ markets })
@@ -293,7 +293,7 @@ class AleoService {
 
     async fetchAllQuestionsFromBackend() {
         try {
-            const response = await fetch('/api/questions')
+            const response = await fetch(`${API_BASE_URL}/api/questions`)
             if (response.ok) {
                 const data = await response.json()
                 const map = {}
@@ -341,7 +341,7 @@ class AleoService {
     
     async fetchQuestionFromBackend(marketId) {
         try {
-            const response = await fetch(`/api/question/${marketId}`)
+            const response = await fetch(`${API_BASE_URL}/api/question/${marketId}`)
             if (response.ok) {
                 return await response.json()
             }
