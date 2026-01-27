@@ -9,15 +9,66 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// MongoDB Connection
+// MongoDB Connection Pattern for Serverless
 const MONGODB_URI = process.env.MONGODB_URI
+
 if (!MONGODB_URI) {
     console.warn('Warning: MONGODB_URI is not defined in environment variables.')
 }
 
-mongoose.connect(MONGODB_URI || 'mongodb://localhost:27017/darkpool')
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err))
+let cached = global.mongoose
+
+if (!cached) {
+    cached = global.mongoose = { conn: null, promise: null }
+}
+
+async function connectToDatabase() {
+    if (cached.conn) {
+        return cached.conn
+    }
+
+    if (!cached.promise) {
+        const opts = {
+            bufferCommands: false,
+            serverApi: {
+                version: '1',
+                strict: true,
+                deprecationErrors: true,
+            }
+        }
+
+        console.log('Connecting to MongoDB...')
+        cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+            console.log('Connected to MongoDB successfully')
+            return mongoose
+        }).catch(err => {
+            console.error('MongoDB connection error:', err)
+            throw err
+        })
+    }
+
+    try {
+        cached.conn = await cached.promise
+    } catch (e) {
+        cached.promise = null
+        throw e
+    }
+
+    return cached.conn
+}
+
+// Routes
+app.use(async (req, res, next) => {
+    // Ensure DB is connected before handling request
+    if (MONGODB_URI) {
+        try {
+            await connectToDatabase()
+        } catch (error) {
+            console.error("Database connection failed for request")
+        }
+    }
+    next()
+})
 
 // Schema Definition
 const QuestionSchema = new mongoose.Schema({
