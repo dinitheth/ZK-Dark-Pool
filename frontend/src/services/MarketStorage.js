@@ -30,30 +30,23 @@ class MarketStorage {
      */
     async addMarket(marketId, question, ipfsCid = null) {
         try {
-            const indexerUrl = import.meta.env.VITE_INDEXER_URL
+            const cleanId = String(marketId).replace('field', '')
 
-            if (indexerUrl) {
-                // Remove 'field' suffix if present for standardization
-                const cleanId = String(marketId).replace('field', '')
-
-                // Backend call to index the market
-                const response = await fetch(`${indexerUrl}/api/index`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        marketId: cleanId,
-                        question: question,
-                        // We might not have hash/cid for manually added markets, send placeholder or empty
-                        questionHash: '0',
-                        ipfsCid: ipfsCid || ''
-                    })
+            const response = await fetch('/api/index', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    marketId: cleanId,
+                    question: question,
+                    hash: '0',
+                    ipfsCid: ipfsCid || ''
                 })
+            })
 
-                if (response.ok) {
-                    console.log('Market manually indexed in backend:', cleanId)
-                } else {
-                    console.error('Failed to index market in backend')
-                }
+            if (response.ok) {
+                console.log('Market manually indexed in backend:', cleanId)
+            } else {
+                console.error('Failed to index market in backend')
             }
 
             // Legacy LocalStorage support (optional, can keep for local testing without internet)

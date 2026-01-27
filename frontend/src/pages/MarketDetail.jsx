@@ -1,48 +1,85 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import BetForm from '../components/BetForm'
-
-// Demo market data (in production, fetched from blockchain)
-const getMarketById = (id) => ({
-    id,
-    question: 'Will Bitcoin reach $100,000 by Q2 2026?',
-    description: 'This market resolves YES if the price of Bitcoin (BTC) reaches or exceeds $100,000 USD on any major exchange (Binance, Coinbase, Kraken) before July 1, 2026.',
-    resolutionTime: Math.floor(Date.now() / 1000) + 86400 * 90,
-    resolved: false,
-    winningOutcome: null,
-    totalYes: 45000,
-    totalNo: 32000,
-    creator: 'aleo1qnr4dkkvkgfqph0vzc3y6z2eu975wnpz2925ntjccd5cfqxtyu8s7pyjh9',
-    createdAt: Math.floor(Date.now() / 1000) - 86400 * 7,
-})
+import aleoService from '../services/AleoService'
 
 export default function MarketDetail() {
     const { id } = useParams()
     const [market, setMarket] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
     const [betPlaced, setBetPlaced] = useState(null)
+    const [currentBlockHeight, setCurrentBlockHeight] = useState(null)
+    const [loadingDelayed, setLoadingDelayed] = useState(false)
 
     useEffect(() => {
         const loadMarket = async () => {
             setIsLoading(true)
-            await new Promise(resolve => setTimeout(resolve, 300))
-            setMarket(getMarketById(id))
+            setLoadingDelayed(false)
+            
+            // Show delayed message after 3 seconds
+            const delayTimer = setTimeout(() => {
+                setLoadingDelayed(true)
+            }, 3000)
+            
+            try {
+                const cleanId = String(id).replace('field', '')
+                
+                const [marketData, blockHeight] = await Promise.all([
+                    aleoService.getMarketWithDetails(cleanId),
+                    aleoService.getCurrentBlockHeight()
+                ])
+                
+                setCurrentBlockHeight(blockHeight)
+                
+                if (marketData) {
+                    setMarket(marketData)
+                }
+            } catch (error) {
+                console.error('Error loading market:', error)
+            }
+            
+            clearTimeout(delayTimer)
             setIsLoading(false)
+            setLoadingDelayed(false)
         }
         loadMarket()
     }, [id])
 
     const handleBetPlaced = (bet) => {
         setBetPlaced(bet)
-        // In production, refresh market data
     }
 
     const formatCredits = (amount) => {
         return new Intl.NumberFormat('en-US').format(amount)
     }
 
-    const formatDate = (timestamp) => {
-        return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+    const formatBlocksToTime = (resolutionHeight) => {
+        if (!currentBlockHeight || !resolutionHeight) return 'Unknown'
+        
+        const blocksRemaining = resolutionHeight - currentBlockHeight
+        if (blocksRemaining <= 0) return 'Ready for resolution'
+        
+        const secondsRemaining = blocksRemaining * 5
+        const days = Math.floor(secondsRemaining / 86400)
+        const hours = Math.floor((secondsRemaining % 86400) / 3600)
+        
+        if (days > 0) {
+            return `~${days}d ${hours}h left`
+        } else if (hours > 0) {
+            return `~${hours}h left`
+        } else {
+            return `<1h left`
+        }
+    }
+
+    const estimateResolutionDate = (resolutionHeight) => {
+        if (!currentBlockHeight || !resolutionHeight) return 'Unknown'
+        
+        const blocksRemaining = resolutionHeight - currentBlockHeight
+        const secondsRemaining = blocksRemaining * 5
+        const resolutionDate = new Date(Date.now() + secondsRemaining * 1000)
+        
+        return resolutionDate.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
@@ -55,6 +92,20 @@ export default function MarketDetail() {
                 <div className="skeleton" style={{ height: 40, width: '60%', marginBottom: 24 }} />
                 <div className="skeleton" style={{ height: 200, marginBottom: 24 }} />
                 <div className="skeleton" style={{ height: 300 }} />
+                {loadingDelayed && (
+                    <div style={{
+                        marginTop: 'var(--spacing-lg)',
+                        padding: 'var(--spacing-md)',
+                        background: 'var(--color-bg-card)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border)',
+                        textAlign: 'center',
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '0.9rem'
+                    }}>
+                        Fetching data from blockchain... This may take a moment, or try refreshing the page.
+                    </div>
+                )}
             </div>
         )
     }
@@ -64,6 +115,9 @@ export default function MarketDetail() {
             <div className="empty-state">
                 <div className="empty-state-icon"></div>
                 <h3 className="empty-state-title">Market not found</h3>
+                <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-lg)' }}>
+                    This market may not exist on the blockchain or hasn't been indexed yet.
+                </p>
                 <Link to="/markets" className="btn btn-primary" style={{ marginTop: 'var(--spacing-lg)' }}>
                     Back to Markets
                 </Link>
@@ -71,7 +125,7 @@ export default function MarketDetail() {
         )
     }
 
-    const totalPool = market.totalYes + market.totalNo
+    const totalPool = (market.totalYes || 0) + (market.totalNo || 0)
     const yesPercentage = totalPool > 0 ? (market.totalYes / totalPool) * 100 : 50
 
     return (
@@ -94,11 +148,12 @@ export default function MarketDetail() {
                     </span>
                 </div>
 
-                <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xl)' }}>
-                    {market.description}
-                </p>
+                {market.description && (
+                    <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xl)' }}>
+                        {market.description}
+                    </p>
+                )}
 
-                {/* Pool visualization */}
                 <div style={{ marginBottom: 'var(--spacing-xl)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
                         <span style={{ color: 'var(--color-yes)', fontWeight: 600 }}>
@@ -126,11 +181,11 @@ export default function MarketDetail() {
                 <div className="market-card-pool">
                     <div className="pool-stat">
                         <div className="pool-stat-label">Yes Pool</div>
-                        <div className="pool-stat-value yes">{formatCredits(market.totalYes)}</div>
+                        <div className="pool-stat-value yes">{formatCredits(market.totalYes || 0)}</div>
                     </div>
                     <div className="pool-stat">
                         <div className="pool-stat-label">No Pool</div>
-                        <div className="pool-stat-value no">{formatCredits(market.totalNo)}</div>
+                        <div className="pool-stat-value no">{formatCredits(market.totalNo || 0)}</div>
                     </div>
                     <div className="pool-stat">
                         <div className="pool-stat-label">Total Pool</div>
@@ -149,30 +204,41 @@ export default function MarketDetail() {
                 }}>
                     <div>
                         <span style={{ color: 'var(--color-text-muted)' }}>Resolution Date: </span>
-                        <span style={{ fontWeight: 500 }}>{formatDate(market.resolutionTime)}</span>
+                        <span style={{ fontWeight: 500 }}>{estimateResolutionDate(market.resolutionHeight)}</span>
                     </div>
                     <div>
-                        <span style={{ color: 'var(--color-text-muted)' }}>Created: </span>
-                        <span style={{ fontWeight: 500 }}>{formatDate(market.createdAt)}</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Time Remaining: </span>
+                        <span style={{ fontWeight: 500 }}>{formatBlocksToTime(market.resolutionHeight)}</span>
                     </div>
                     <div>
                         <span style={{ color: 'var(--color-text-muted)' }}>Creator: </span>
                         <span className="mono" style={{ fontWeight: 500 }}>
-                            {market.creator.slice(0, 10)}...{market.creator.slice(-6)}
+                            {market.creator?.slice(0, 10)}...{market.creator?.slice(-6)}
                         </span>
                     </div>
                     <div>
                         <span className="privacy-indicator private">Individual bets hidden</span>
                     </div>
                 </div>
+                
+                <div style={{
+                    marginTop: 'var(--spacing-lg)',
+                    padding: 'var(--spacing-sm)',
+                    background: 'var(--color-bg-tertiary)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-muted)'
+                }}>
+                    <strong>Market ID:</strong> {market.id} | 
+                    <strong> Resolution Block:</strong> {market.resolutionHeight} |
+                    <strong> Current Block:</strong> {currentBlockHeight}
+                </div>
             </div>
 
-            {/* Bet Form */}
             {!market.resolved && (
                 <BetForm market={market} onBetPlaced={handleBetPlaced} />
             )}
 
-            {/* Bet confirmation */}
             {betPlaced && (
                 <div className="card" style={{
                     marginTop: 'var(--spacing-lg)',
@@ -198,7 +264,6 @@ export default function MarketDetail() {
                 </div>
             )}
 
-            {/* Resolution info for resolved markets */}
             {market.resolved && (
                 <div className="card" style={{
                     background: market.winningOutcome === 1 ? 'var(--color-yes-bg)' : 'var(--color-no-bg)',

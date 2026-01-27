@@ -119,27 +119,42 @@ export default function CreateMarket() {
 
             console.log('Transaction approved by wallet:', txId)
 
-            // Save to Backend (MongoDB through Vercel)
-            const indexerUrl = import.meta.env.VITE_INDEXER_URL
-            if (indexerUrl) {
-                try {
-                    await fetch(`${indexerUrl}/api/index`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            marketId: marketId.toString(),
-                            question: formData.question,
-                            questionHash: questionHashNum.toString(),
-                            ipfsCid: ipfsResult?.cid || ''
-                        })
+            // Save to Backend via proxy
+            try {
+                await fetch('/api/index', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        marketId: marketId.toString(),
+                        question: formData.question,
+                        hash: questionHashNum.toString(),
+                        ipfsCid: ipfsResult?.cid || ''
                     })
-                    console.log('Market indexed in backend')
-                } catch (idxError) {
-                    console.error('Failed to index market:', idxError)
-                    // Don't block UI on indexing error, blockchain tx is what matters
+                })
+                console.log('Market indexed in backend')
+
+                // Also add to markets cache for instant loading
+                const newMarket = {
+                    id: marketId.toString(),
+                    question: formData.question,
+                    creator: publicKey,
+                    resolutionHeight: resolutionHeight,
+                    resolved: false,
+                    winningOutcome: 0,
+                    totalYes: 0,
+                    totalNo: 0,
+                    totalPool: 0,
+                    currentBlockHeight: currentHeight,
+                    ipfsCid: ipfsResult?.cid || ''
                 }
-            } else {
-                console.warn('VITE_INDEXER_URL not set, skipping backend indexing')
+                await fetch('/api/markets/cache', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ markets: [newMarket] })
+                })
+                console.log('Market added to cache')
+            } catch (idxError) {
+                console.error('Failed to index market:', idxError)
             }
 
             // Redirect immediately to markets page

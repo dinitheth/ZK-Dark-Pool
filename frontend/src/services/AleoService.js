@@ -5,6 +5,7 @@
  * - Network client for reading public state (mappings)
  * - Transaction building helpers
  * - Program execution utilities
+ * - Caching for performance
  */
 
 import { ALEO_CONFIG } from '../config'
@@ -13,28 +14,42 @@ class AleoService {
     constructor() {
         this.rpcUrl = ALEO_CONFIG.rpcUrl
         this.programId = ALEO_CONFIG.programId
+        this.cache = new Map()
+        this.cacheTimeout = 30000
+        this.blockHeightCache = null
+        this.blockHeightCacheTime = 0
     }
 
-    /**
-     * Read a mapping value from the program
-     * @param {string} mappingName - Name of the mapping (e.g., 'markets', 'pools')
-     * @param {string} key - The key to look up
-     * @returns {Promise<string|null>} - The mapping value or null if not found
-     */
+    getCached(key) {
+        const cached = this.cache.get(key)
+        if (cached && Date.now() - cached.time < this.cacheTimeout) {
+            return cached.data
+        }
+        return null
+    }
+
+    setCache(key, data) {
+        this.cache.set(key, { data, time: Date.now() })
+    }
+
     async getMappingValue(mappingName, key) {
+        const cacheKey = `mapping:${mappingName}:${key}`
+        const cached = this.getCached(cacheKey)
+        if (cached) return cached
+
         try {
             const url = `${this.rpcUrl}/testnet/program/${this.programId}/mapping/${mappingName}/${key}`
             const response = await fetch(url)
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    console.log(`Mapping ${mappingName}[${key}] not found`)
                     return null
                 }
                 throw new Error(`Failed to fetch mapping: ${response.statusText}`)
             }
 
             const data = await response.text()
+            this.setCache(cacheKey, data || null)
             return data || null
         } catch (error) {
             console.error(`Error reading mapping ${mappingName}[${key}]:`, error)
@@ -42,51 +57,29 @@ class AleoService {
         }
     }
 
-    /**
-     * Get market info from the markets mapping
-     * @param {string} marketId - The market ID (field value)
-     * @returns {Promise<Object|null>} - Parsed market info or null
-     */
     async getMarket(marketId) {
-        // API requires the 'field' suffix for field-type keys
         const key = String(marketId).includes('field') ? marketId : `${marketId}field`
         const value = await this.getMappingValue(ALEO_CONFIG.mappings.markets, key)
         if (!value) return null
-
         return this.parseMarketInfo(value)
     }
 
-    /**
-     * Get pool state from the pools mapping
-     * @param {string} marketId - The market ID (field value)
-     * @returns {Promise<Object|null>} - Parsed pool state or null
-     */
     async getPool(marketId) {
-        // API requires the 'field' suffix for field-type keys
         const key = String(marketId).includes('field') ? marketId : `${marketId}field`
         const value = await this.getMappingValue(ALEO_CONFIG.mappings.pools, key)
         if (!value) return null
-
         return this.parsePoolState(value)
     }
 
-    /**
-     * Parse MarketInfo struct from Aleo format
-     * Handles both compact and pretty-printed JSON-like formats from API
-     */
     parseMarketInfo(value) {
         try {
-            // Remove quotes, newlines, and extra whitespace
             const cleaned = value.replace(/^"|"$/g, '').replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim()
-
-            // Extract individual fields using flexible patterns
             const creatorMatch = cleaned.match(/creator:\s*(aleo1[a-z0-9]+)/)
             const resolutionMatch = cleaned.match(/resolution_height:\s*(\d+)u32/)
             const resolvedMatch = cleaned.match(/resolved:\s*(true|false)/)
             const outcomeMatch = cleaned.match(/winning_outcome:\s*(\d+)u8/)
 
             if (!creatorMatch || !resolutionMatch || !resolvedMatch || !outcomeMatch) {
-                console.warn('Could not parse MarketInfo:', value)
                 return null
             }
 
@@ -97,27 +90,18 @@ class AleoService {
                 winningOutcome: parseInt(outcomeMatch[1]),
             }
         } catch (error) {
-            console.error('Error parsing MarketInfo:', error)
             return null
         }
     }
 
-    /**
-     * Parse PoolState struct from Aleo format
-     * Handles both compact and pretty-printed JSON-like formats from API
-     */
     parsePoolState(value) {
         try {
-            // Remove quotes, newlines, and extra whitespace
             const cleaned = value.replace(/^"|"$/g, '').replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim()
-
-            // Extract individual fields using flexible patterns
             const yesMatch = cleaned.match(/total_yes:\s*(\d+)u64/)
             const noMatch = cleaned.match(/total_no:\s*(\d+)u64/)
             const poolMatch = cleaned.match(/total_pool:\s*(\d+)u64/)
 
             if (!yesMatch || !noMatch || !poolMatch) {
-                console.warn('Could not parse PoolState:', value)
                 return null
             }
 
@@ -127,111 +111,253 @@ class AleoService {
                 totalPool: parseInt(poolMatch[1]),
             }
         } catch (error) {
-            console.error('Error parsing PoolState:', error)
             return null
         }
     }
 
-    /**
-     * Check if the program exists on the network
-     * @returns {Promise<boolean>}
-     */
     async programExists() {
+        const cached = this.getCached('programExists')
+        if (cached !== null) return cached
+
         try {
             const url = `${this.rpcUrl}/testnet/program/${this.programId}`
-            console.log('Checking program at:', url)
             const response = await fetch(url)
-            console.log('Program exists:', response.ok)
-            return response.ok
+            const exists = response.ok
+            this.setCache('programExists', exists)
+            console.log('Program exists:', exists)
+            return exists
         } catch (error) {
-            console.error('Error checking program:', error)
             return false
         }
     }
 
-    /**
-     * Get current block height from the network
-     * @returns {Promise<number>}
-     */
     async getCurrentBlockHeight() {
+        if (this.blockHeightCache && Date.now() - this.blockHeightCacheTime < 10000) {
+            return this.blockHeightCache
+        }
+
         try {
             const url = `${this.rpcUrl}/testnet/block/height/latest`
             const response = await fetch(url)
             if (!response.ok) {
                 throw new Error('Failed to fetch block height')
             }
-            const height = await response.text()
-            return parseInt(height)
+            const height = parseInt(await response.text())
+            this.blockHeightCache = height
+            this.blockHeightCacheTime = Date.now()
+            return height
         } catch (error) {
-            console.error('Error fetching block height:', error)
-            return 14000000
+            return this.blockHeightCache || 14000000
         }
     }
 
-    /**
-     * Get recent transactions for the program
-     * @param {number} limit - Number of transactions to fetch
-     * @returns {Promise<Array>}
-     */
-    async getRecentTransactions(limit = 10) {
+    async getMarketCount() {
+        const cached = this.getCached('marketCount')
+        if (cached !== null) return cached
+
         try {
-            const url = `${this.rpcUrl}/testnet/program/${this.programId}/transactions?limit=${limit}`
-            const response = await fetch(url)
-
-            if (!response.ok) {
-                return []
-            }
-
-            return await response.json()
+            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketCount, '0u64')
+            if (!value) return 0
+            const match = value.match(/(\d+)u64/)
+            const count = match ? parseInt(match[1]) : 0
+            this.setCache('marketCount', count)
+            return count
         } catch (error) {
-            console.error('Error fetching transactions:', error)
-            return []
+            return 0
         }
     }
 
-    /**
-     * Get transaction details
-     * @param {string} txId - Transaction ID
-     * @returns {Promise<Object|null>}
-     */
-    async getTransaction(txId) {
+    async getMarketIdAtIndex(index) {
         try {
-            const url = `${this.rpcUrl}/testnet/transaction/${txId}`
-            const response = await fetch(url)
-
-            if (!response.ok) {
-                return null
-            }
-
-            return await response.json()
+            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketIds, `${index}u64`)
+            if (!value) return null
+            const match = value.match(/(\d+)field/)
+            return match ? match[1] : null
         } catch (error) {
-            console.error('Error fetching transaction:', error)
             return null
         }
     }
 
-    /**
-     * Build transaction inputs for place_bet
-     * @param {string} marketId - Market ID
-     * @param {number} outcome - 0 for NO, 1 for YES
-     * @param {number} amount - Bet amount in microcredits
-     * @returns {Array<string>}
-     */
+    async getMarketQuestionHash(marketId) {
+        try {
+            const key = String(marketId).includes('field') ? marketId : `${marketId}field`
+            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketQuestions, key)
+            if (!value) return null
+            const match = value.match(/(\d+)field/)
+            return match ? match[1] : null
+        } catch (error) {
+            return null
+        }
+    }
+
+    async getAllMarkets(forceRefresh = false) {
+        try {
+            if (!forceRefresh) {
+                const cached = await this.fetchCachedMarkets()
+                if (cached.length > 0) {
+                    console.log('Loaded from cache:', cached.length, 'markets')
+                    this.refreshMarketsInBackground()
+                    return cached
+                }
+            }
+
+            return await this.fetchMarketsFromBlockchain()
+        } catch (error) {
+            console.error('Error fetching all markets:', error)
+            return []
+        }
+    }
+
+    async fetchCachedMarkets() {
+        try {
+            const response = await fetch('/api/markets/cached')
+            if (response.ok) {
+                const data = await response.json()
+                if (data.markets && data.markets.length > 0) {
+                    return data.markets
+                }
+            }
+        } catch (error) {
+            console.log('Cache miss, fetching from blockchain')
+        }
+        return []
+    }
+
+    async refreshMarketsInBackground() {
+        setTimeout(async () => {
+            try {
+                const markets = await this.fetchMarketsFromBlockchain()
+                if (markets.length > 0) {
+                    await fetch('/api/markets/cache', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ markets })
+                    })
+                    console.log('Cache updated with fresh blockchain data')
+                }
+            } catch (error) {
+                console.error('Background refresh failed:', error)
+            }
+        }, 100)
+    }
+
+    async fetchMarketsFromBlockchain() {
+        const count = await this.getMarketCount()
+        console.log('Total markets on-chain:', count)
+
+        if (count === 0) return []
+
+        const [indexedQuestions, blockHeight] = await Promise.all([
+            this.fetchAllQuestionsFromBackend(),
+            this.getCurrentBlockHeight()
+        ])
+
+        const idPromises = []
+        for (let i = 0; i < count; i++) {
+            idPromises.push(this.getMarketIdAtIndex(i))
+        }
+        const marketIds = await Promise.all(idPromises)
+        const validIds = marketIds.filter(id => id !== null)
+
+        const markets = await Promise.all(validIds.map(async (marketId) => {
+            const [marketInfo, poolState] = await Promise.all([
+                this.getMarket(marketId),
+                this.getPool(marketId)
+            ])
+
+            const cleanId = String(marketId).replace('field', '')
+            const backendData = indexedQuestions[cleanId]
+
+            return {
+                id: cleanId,
+                question: backendData ? backendData.question : `Market #${cleanId}`,
+                ipfsCid: backendData?.ipfsCid,
+                ...marketInfo,
+                totalYes: poolState?.totalYes || 0,
+                totalNo: poolState?.totalNo || 0,
+                totalPool: poolState?.totalPool || 0,
+                currentBlockHeight: blockHeight,
+            }
+        }))
+
+        if (markets.length > 0) {
+            fetch('/api/markets/cache', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ markets })
+            }).catch(() => {})
+        }
+
+        return markets
+    }
+
+    async fetchAllQuestionsFromBackend() {
+        try {
+            const response = await fetch('/api/questions')
+            if (response.ok) {
+                const data = await response.json()
+                const map = {}
+                if (Array.isArray(data)) {
+                    data.forEach(q => { map[q.marketId] = q })
+                }
+                console.log('Fetched indexed questions:', Object.keys(map).length)
+                return map
+            }
+        } catch (error) {
+            console.error('Failed to fetch indexed questions:', error)
+        }
+        return {}
+    }
+    
+    async getMarketWithDetails(marketId) {
+        try {
+            const cleanId = String(marketId).replace('field', '')
+            
+            const [marketInfo, poolState, backendData, blockHeight] = await Promise.all([
+                this.getMarket(cleanId),
+                this.getPool(cleanId),
+                this.fetchQuestionFromBackend(cleanId),
+                this.getCurrentBlockHeight()
+            ])
+            
+            if (!marketInfo) return null
+            
+            return {
+                id: cleanId,
+                question: backendData?.question || `Market #${cleanId}`,
+                description: backendData?.description || '',
+                ipfsCid: backendData?.ipfsCid,
+                ...marketInfo,
+                totalYes: poolState?.totalYes || 0,
+                totalNo: poolState?.totalNo || 0,
+                totalPool: poolState?.totalPool || 0,
+                currentBlockHeight: blockHeight,
+            }
+        } catch (error) {
+            console.error('Error fetching market details:', error)
+            return null
+        }
+    }
+    
+    async fetchQuestionFromBackend(marketId) {
+        try {
+            const response = await fetch(`/api/question/${marketId}`)
+            if (response.ok) {
+                return await response.json()
+            }
+        } catch (error) {}
+        return null
+    }
+
     buildPlaceBetInputs(marketId, outcome, amount) {
+        const cleanId = String(marketId).replace('field', '')
         return [
-            `${marketId}field`,
+            `${cleanId}field`,
             `${outcome}u8`,
             `${amount}u64`,
         ]
     }
 
-    /**
-     * Build transaction inputs for create_market
-     * @param {string} marketId - Market ID
-     * @param {number} resolutionHeight - Block height for resolution
-     * @param {string} questionHash - Hash of the question text
-     * @returns {Array<string>}
-     */
     buildCreateMarketInputs(marketId, resolutionHeight, questionHash) {
         const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
         return [
@@ -241,135 +367,6 @@ class AleoService {
         ]
     }
 
-    /**
-     * Get total market count from on-chain registry
-     * @returns {Promise<number>}
-     */
-    async getMarketCount() {
-        try {
-            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketCount, '0u64')
-            if (!value) return 0
-            // Parse u64 value
-            const match = value.match(/(\d+)u64/)
-            return match ? parseInt(match[1]) : 0
-        } catch (error) {
-            console.error('Error getting market count:', error)
-            return 0
-        }
-    }
-
-    /**
-     * Get market ID at a specific index in the registry
-     * @param {number} index - Index in the registry
-     * @returns {Promise<string|null>}
-     */
-    async getMarketIdAtIndex(index) {
-        try {
-            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketIds, `${index}u64`)
-            if (!value) return null
-            // Parse field value
-            const match = value.match(/(\d+)field/)
-            return match ? match[1] : null
-        } catch (error) {
-            console.error(`Error getting market ID at index ${index}:`, error)
-            return null
-        }
-    }
-
-    /**
-     * Get question hash for a market
-     * @param {string} marketId - Market ID
-     * @returns {Promise<string|null>}
-     */
-    async getMarketQuestionHash(marketId) {
-        try {
-            const key = String(marketId).includes('field') ? marketId : `${marketId}field`
-            const value = await this.getMappingValue(ALEO_CONFIG.mappings.marketQuestions, key)
-            if (!value) return null
-            const match = value.match(/(\d+)field/)
-            return match ? match[1] : null
-        } catch (error) {
-            console.error(`Error getting question hash for market ${marketId}:`, error)
-            return null
-        }
-    }
-
-    /**
-     * Fetch all markets from on-chain registry
-     * @returns {Promise<Array>}
-     */
-    async getAllMarkets() {
-        try {
-            const count = await this.getMarketCount()
-            console.log('Total markets on-chain:', count)
-
-            if (count === 0) return []
-
-            // Fetch indexed questions from backend
-            let indexedQuestions = {}
-            const indexerUrl = import.meta.env.VITE_INDEXER_URL
-            if (indexerUrl) {
-                try {
-                    const response = await fetch(`${indexerUrl}/api/questions`)
-                    if (response.ok) {
-                        const data = await response.json()
-                        // Create lookup map by marketId
-                        data.forEach(q => {
-                            indexedQuestions[q.marketId] = q
-                        })
-                        console.log('Fetched indexed questions:', Object.keys(indexedQuestions).length)
-                    }
-                } catch (err) {
-                    console.error('Failed to fetch indexed questions:', err)
-                }
-            }
-
-            // Fetch all market IDs in parallel first
-            const idPromises = []
-            for (let i = 0; i < count; i++) {
-                idPromises.push(this.getMarketIdAtIndex(i))
-            }
-            const marketIds = await Promise.all(idPromises)
-
-            // Filter out nulls
-            const validIds = marketIds.filter(id => id !== null)
-
-            // Fetch details for all valid IDs in parallel
-            const markets = await Promise.all(validIds.map(async (marketId) => {
-                const [marketInfo, poolState, questionHash] = await Promise.all([
-                    this.getMarket(marketId),
-                    this.getPool(marketId),
-                    this.getMarketQuestionHash(marketId)
-                ])
-
-                // Merge with backend data if available
-                const cleanId = marketId.replace('field', '')
-                const backendData = indexedQuestions[cleanId]
-
-                return {
-                    id: marketId,
-                    questionHash: questionHash,
-                    // If we have backend data, use it. Otherwise fallback to ID.
-                    question: backendData ? backendData.question : `Market #${marketId}`,
-                    ipfsCid: backendData ? backendData.ipfsCid : undefined,
-                    ...marketInfo,
-                    ...poolState,
-                }
-            }))
-
-            return markets
-        } catch (error) {
-            console.error('Error fetching all markets:', error)
-            return []
-        }
-    }
-
-    /**
-     * Build transaction inputs for resolve_market
-     * @param {string} marketId - Market ID
-     * @param {number} winningOutcome - 0 for NO, 1 for YES
-     * @returns {Array<string>}
-     */
     buildResolveMarketInputs(marketId, winningOutcome) {
         return [
             `${marketId}field`,
