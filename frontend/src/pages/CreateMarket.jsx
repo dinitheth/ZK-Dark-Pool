@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
-import { ALEO_CONFIG, getExplorerUrl } from '../config'
+import { ALEO_CONFIG, getExplorerUrl, API_BASE_URL } from '../config'
 import aleoService from '../services/AleoService'
 import marketStorage from '../services/MarketStorage'
 import ipfsService from '../services/IPFSService'
@@ -119,9 +119,9 @@ export default function CreateMarket() {
 
             console.log('Transaction approved by wallet:', txId)
 
-            // Save to Backend via proxy
+            // Save to Backend (using full URL for production)
             try {
-                await fetch('/api/index', {
+                await fetch(`${API_BASE_URL}/api/index`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -147,7 +147,7 @@ export default function CreateMarket() {
                     currentBlockHeight: currentHeight,
                     ipfsCid: ipfsResult?.cid || ''
                 }
-                await fetch('/api/markets/cache', {
+                await fetch(`${API_BASE_URL}/api/markets/cache`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ markets: [newMarket] })
