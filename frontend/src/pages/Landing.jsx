@@ -12,6 +12,7 @@ export default function Landing() {
         totalMarkets: 0,
         isLoading: true
     })
+    const [showNetworkNotice, setShowNetworkNotice] = useState(true)
 
     useEffect(() => {
         fetchStats()
@@ -57,18 +58,29 @@ export default function Landing() {
         }
     }
 
-    const formatVolume = (credits) => {
-        // Convert microcredits to credits and format
-        if (credits >= 1000000) {
-            return `${(credits / 1000000).toFixed(1)}M`
-        } else if (credits >= 1000) {
-            return `${(credits / 1000).toFixed(1)}K`
+    const formatVolume = (microcredits) => {
+        // Convert microcredits to ALEO (1 ALEO = 1,000,000 microcredits)
+        const aleo = microcredits / 1000000
+        if (aleo >= 1000000) {
+            return `${(aleo / 1000000).toFixed(2)}M`
+        } else if (aleo >= 1000) {
+            return `${(aleo / 1000).toFixed(2)}K`
+        } else if (aleo >= 1) {
+            return aleo.toFixed(2)
         }
-        return credits.toString()
+        return aleo.toFixed(4)
     }
 
     return (
         <div className="landing-page">
+            {/* Network Notice */}
+            {showNetworkNotice && (
+                <div className="network-notice">
+                    <span>Please switch your wallet to Aleo Testnet Beta to use this platform</span>
+                    <button onClick={() => setShowNetworkNotice(false)} className="notice-close">&times;</button>
+                </div>
+            )}
+            
             {/* Hero Section */}
             <section className="hero">
                 <div className="hero-content">
