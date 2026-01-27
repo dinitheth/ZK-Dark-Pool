@@ -129,18 +129,18 @@ export default function BetForm({ market, onBetPlaced }) {
 
             setTxStatus('Requesting wallet signature...')
 
-            // Use Leo Wallet's requestTransaction format with chainId for testnetbeta
-            const txId = await requestTransaction({
-                address: publicKey,
-                chainId: 'testnetbeta',
-                transitions: [{
-                    program: ALEO_CONFIG.programId,
-                    functionName: 'place_bet',
-                    inputs: inputs,
-                }],
-                fee: ALEO_CONFIG.fees.placeBet,
-                feePrivate: false,
-            })
+            // Use Leo Wallet's Transaction.createTransaction helper
+            const aleoTransaction = Transaction.createTransaction(
+                publicKey,
+                WalletAdapterNetwork.TestnetBeta,
+                ALEO_CONFIG.programId,
+                'place_bet',
+                inputs,
+                ALEO_CONFIG.fees.placeBet,
+                false  // feePrivate
+            )
+
+            const txId = await requestTransaction(aleoTransaction)
 
             console.log('Bet approved by wallet:', txId)
 
