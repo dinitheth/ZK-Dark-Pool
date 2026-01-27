@@ -78,7 +78,7 @@ class AleoService {
         try {
             // Remove quotes, newlines, and extra whitespace
             const cleaned = value.replace(/^"|"$/g, '').replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim()
-            
+
             // Extract individual fields using flexible patterns
             const creatorMatch = cleaned.match(/creator:\s*(aleo1[a-z0-9]+)/)
             const resolutionMatch = cleaned.match(/resolution_height:\s*(\d+)u32/)
@@ -110,7 +110,7 @@ class AleoService {
         try {
             // Remove quotes, newlines, and extra whitespace
             const cleaned = value.replace(/^"|"$/g, '').replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim()
-            
+
             // Extract individual fields using flexible patterns
             const yesMatch = cleaned.match(/total_yes:\s*(\d+)u64/)
             const noMatch = cleaned.match(/total_no:\s*(\d+)u64/)
@@ -240,7 +240,7 @@ class AleoService {
             `${hashStr}field`,
         ]
     }
-    
+
     /**
      * Get total market count from on-chain registry
      * @returns {Promise<number>}
@@ -257,7 +257,7 @@ class AleoService {
             return 0
         }
     }
-    
+
     /**
      * Get market ID at a specific index in the registry
      * @param {number} index - Index in the registry
@@ -275,7 +275,7 @@ class AleoService {
             return null
         }
     }
-    
+
     /**
      * Get question hash for a market
      * @param {string} marketId - Market ID
@@ -293,7 +293,7 @@ class AleoService {
             return null
         }
     }
-    
+
     /**
      * Fetch all markets from on-chain registry
      * @returns {Promise<Array>}
@@ -302,9 +302,28 @@ class AleoService {
         try {
             const count = await this.getMarketCount()
             console.log('Total markets on-chain:', count)
-            
+
             if (count === 0) return []
-            
+
+            // Fetch indexed questions from backend
+            let indexedQuestions = {}
+            const indexerUrl = import.meta.env.VITE_INDEXER_URL
+            if (indexerUrl) {
+                try {
+                    const response = await fetch(`${indexerUrl}/api/questions`)
+                    if (response.ok) {
+                        const data = await response.json()
+                        // Create lookup map by marketId
+                        data.forEach(q => {
+                            indexedQuestions[q.marketId] = q
+                        })
+                        console.log('Fetched indexed questions:', Object.keys(indexedQuestions).length)
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch indexed questions:', err)
+                }
+            }
+
             const markets = []
             for (let i = 0; i < count; i++) {
                 const marketId = await this.getMarketIdAtIndex(i)
@@ -312,16 +331,24 @@ class AleoService {
                     const marketInfo = await this.getMarket(marketId)
                     const poolState = await this.getPool(marketId)
                     const questionHash = await this.getMarketQuestionHash(marketId)
-                    
+
+                    // Merge with backend data if available
+                    // Removing 'field' suffix for matching if present
+                    const cleanId = marketId.replace('field', '')
+                    const backendData = indexedQuestions[cleanId]
+
                     markets.push({
                         id: marketId,
                         questionHash: questionHash,
+                        // If we have backend data, use it. Otherwise undefined (handled by Markets.jsx fallback)
+                        question: backendData ? backendData.question : undefined,
+                        ipfsCid: backendData ? backendData.ipfsCid : undefined,
                         ...marketInfo,
                         ...poolState,
                     })
                 }
             }
-            
+
             return markets
         } catch (error) {
             console.error('Error fetching all markets:', error)

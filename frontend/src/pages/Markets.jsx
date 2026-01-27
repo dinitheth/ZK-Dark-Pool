@@ -83,84 +83,25 @@ export default function Markets() {
             }
 
             try {
-                console.log('Fetching markets from blockchain registry...')
-                
-                // First, try to fetch from on-chain registry
-                const onChainMarkets = await aleoService.getAllMarkets()
-                console.log('On-chain markets:', onChainMarkets)
-                
-                // Also get locally tracked markets (for pending ones not yet on-chain)
-                const localMarkets = marketStorage.getMarketIds()
-                console.log('Local tracked markets:', localMarkets)
-                
-                // Merge on-chain and local markets, preferring on-chain data
-                const onChainIds = new Set(onChainMarkets.map(m => String(m.id)))
-                
-                // Add local markets that aren't on-chain yet (pending confirmation)
-                const pendingMarkets = localMarkets
-                    .filter(local => !onChainIds.has(String(local.id)))
-                    .map(local => ({
-                        id: local.id,
-                        question: local.question,
-                        pending: true,
-                        resolved: false,
-                        totalYes: 0,
-                        totalNo: 0,
-                        totalPool: 0,
-                        createdAt: local.createdAt,
-                    }))
-                
-                // For on-chain markets, try to get question from local storage or IPFS
-                const enrichedOnChainMarkets = await Promise.all(
-                    onChainMarkets.map(async (market) => {
-                        const localMatch = localMarkets.find(l => String(l.id) === String(market.id))
-                        
-                        // If we have local data, use it
-                        if (localMatch?.question) {
-                            return {
-                                ...market,
-                                question: localMatch.question,
-                                ipfsCid: localMatch.ipfsCid,
-                                pending: false,
-                            }
-                        }
-                        
-                        // Try to fetch from local IPFS index using on-chain question hash
-                        if (market.questionHash) {
-                            try {
-                                const hashStr = String(market.questionHash).replace('field', '')
-                                const question = ipfsService.getQuestionByHash(hashStr) || 
-                                                 await ipfsService.fetchQuestion(hashStr)
-                                if (question) {
-                                    marketStorage.addMarket(market.id, question, hashStr)
-                                    return {
-                                        ...market,
-                                        question: question,
-                                        questionHashStr: hashStr,
-                                        pending: false,
-                                    }
-                                }
-                            } catch (err) {
-                                console.warn('Failed to fetch question:', err)
-                            }
-                        }
-                        
-                        // Fallback to market ID display
-                        return {
-                            ...market,
-                            question: `Market #${market.id}`,
-                            pending: false,
-                        }
-                    })
-                )
-                
-                const allMarkets = [...enrichedOnChainMarkets, ...pendingMarkets]
+                console.log('Fetching markets from blockchain & backend...')
+
+                // Fetch markets (AleoService now handles backend merging)
+                const allMarkets = await aleoService.getAllMarkets()
                 console.log('All markets:', allMarkets)
-                
+
+                // If any markets are pending (not on chain but in backend), we could fetch them here
+                // But for now, we rely on chain data as source of truth
+
                 if (allMarkets.length === 0) {
                     console.log('No markets found. Create one to get started!')
                 }
-                
+
+                setMarkets(allMarkets)
+
+                if (allMarkets.length === 0) {
+                    console.log('No markets found. Create one to get started!')
+                }
+
                 setMarkets(allMarkets)
 
             } catch (error) {
@@ -190,7 +131,7 @@ export default function Markets() {
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                    <button 
+                    <button
                         className="btn btn-outline"
                         onClick={() => setShowAddMarket(!showAddMarket)}
                     >

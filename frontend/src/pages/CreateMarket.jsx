@@ -36,7 +36,7 @@ export default function CreateMarket() {
         }
         return Math.abs(hash) % 1000000000 // Keep it in a reasonable range for field
     }
-    
+
     // Generate a question hash for on-chain storage
     const generateQuestionHash = (question) => {
         let hash = 0
@@ -70,7 +70,7 @@ export default function CreateMarket() {
             const marketId = generateMarketId(formData.question)
 
             setTxStatus('Uploading question to IPFS...')
-            
+
             // Upload question to IPFS and get deterministic hash
             let questionHashNum
             let ipfsResult
@@ -118,14 +118,31 @@ export default function CreateMarket() {
             })
 
             console.log('Transaction approved by wallet:', txId)
-            
-            // Save locally immediately after wallet approval
-            const hashStr = questionHashNum.toString()
-            marketStorage.addMarket(marketId, formData.question, hashStr)
-            ipfsService.storeQuestionLocally(hashStr, formData.question, ipfsResult?.cid)
-            console.log('Market saved with hash:', hashStr)
 
-            // Redirect immediately to markets page - don't wait for on-chain confirmation
+            // Save to Backend (MongoDB through Vercel)
+            const indexerUrl = import.meta.env.VITE_INDEXER_URL
+            if (indexerUrl) {
+                try {
+                    await fetch(`${indexerUrl}/api/index`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            marketId: marketId.toString(),
+                            question: formData.question,
+                            questionHash: questionHashNum.toString(),
+                            ipfsCid: ipfsResult?.cid || ''
+                        })
+                    })
+                    console.log('Market indexed in backend')
+                } catch (idxError) {
+                    console.error('Failed to index market:', idxError)
+                    // Don't block UI on indexing error, blockchain tx is what matters
+                }
+            } else {
+                console.warn('VITE_INDEXER_URL not set, skipping backend indexing')
+            }
+
+            // Redirect immediately to markets page
             navigate('/markets')
 
         } catch (err) {
