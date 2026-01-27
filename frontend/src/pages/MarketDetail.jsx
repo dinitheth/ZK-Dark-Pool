@@ -103,7 +103,7 @@ export default function MarketDetail() {
                         color: 'var(--color-text-secondary)',
                         fontSize: '0.9rem'
                     }}>
-                        Fetching data from blockchain... This may take a moment.
+                        Fetching data from blockchain... This may take a moment, or try refreshing the page.
                     </div>
                 )}
             </div>
