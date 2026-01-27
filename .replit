@@ -61,3 +61,8 @@ externalPort = 3002
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd backend && node server.js & cd frontend && npx vite preview --host 0.0.0.0 --port 5000"]
 build = ["bash", "-c", "cd frontend && npm run build"]
+
+[userenv]
+
+[userenv.shared]
+NEON_DATABASE_URL = "postgresql://neondb_owner:npg_svhJjKxw94AQ@ep-cool-frog-ahx22r7y-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require"

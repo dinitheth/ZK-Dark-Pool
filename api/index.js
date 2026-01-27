@@ -7,7 +7,7 @@ let pool;
 function getPool() {
   if (!pool) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: process.env.DATABASE_URL || process.env.NEON_DATABASE_URL,
       ssl: { rejectUnauthorized: false }
     });
   }
