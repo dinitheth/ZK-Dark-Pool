@@ -28,31 +28,51 @@ class MarketStorage {
      * @param {string} question - Market question (for display)
      * @param {string} ipfsCid - IPFS CID for the question (optional)
      */
-    addMarket(marketId, question, ipfsCid = null) {
+    async addMarket(marketId, question, ipfsCid = null) {
         try {
-            const markets = this.getMarketIds()
+            const indexerUrl = import.meta.env.VITE_INDEXER_URL
 
-            // Avoid duplicates
-            const exists = markets.some(m => m.id === marketId)
-            if (exists) {
-                console.log('Market already tracked:', marketId)
-                return
+            if (indexerUrl) {
+                // Remove 'field' suffix if present for standardization
+                const cleanId = String(marketId).replace('field', '')
+
+                // Backend call to index the market
+                const response = await fetch(`${indexerUrl}/api/index`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        marketId: cleanId,
+                        question: question,
+                        // We might not have hash/cid for manually added markets, send placeholder or empty
+                        questionHash: '0',
+                        ipfsCid: ipfsCid || ''
+                    })
+                })
+
+                if (response.ok) {
+                    console.log('Market manually indexed in backend:', cleanId)
+                } else {
+                    console.error('Failed to index market in backend')
+                }
             }
 
-            markets.push({
-                id: marketId,
-                question: question,
-                ipfsCid: ipfsCid,
-                createdAt: Date.now(),
-            })
-
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(markets))
-            console.log('Market added to storage:', marketId)
+            // Legacy LocalStorage support (optional, can keep for local testing without internet)
+            const markets = this.getMarketIds()
+            const exists = markets.some(m => m.id === marketId)
+            if (!exists) {
+                markets.push({
+                    id: marketId,
+                    question: question,
+                    ipfsCid: ipfsCid,
+                    createdAt: Date.now(),
+                })
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(markets))
+            }
         } catch (error) {
             console.error('Error adding market:', error)
         }
     }
-    
+
     /**
      * Get IPFS CID for a market
      * @param {string} marketId
