@@ -133,7 +133,7 @@ All endpoints are handled by the serverless function at `/api`:
 
 ## Currency
 
-- **1 ALEO = 1,000,000 microcredits**
+- **1 ALEO = 10,000 microcredits**
 - All on-chain values are stored in microcredits
 - UI displays converted ALEO values
 

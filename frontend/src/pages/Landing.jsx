@@ -59,8 +59,8 @@ export default function Landing() {
     }
 
     const formatVolume = (microcredits) => {
-        // Convert microcredits to ALEO (1 ALEO = 1,000,000 microcredits)
-        const aleo = microcredits / 1000000
+        // Convert microcredits to ALEO (1 ALEO = 10,000 microcredits)
+        const aleo = microcredits / 10000
         if (aleo >= 1000000) {
             return `${(aleo / 1000000).toFixed(2)}M`
         } else if (aleo >= 1000) {
