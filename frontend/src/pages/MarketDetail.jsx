@@ -9,10 +9,18 @@ export default function MarketDetail() {
     const [isLoading, setIsLoading] = useState(true)
     const [betPlaced, setBetPlaced] = useState(null)
     const [currentBlockHeight, setCurrentBlockHeight] = useState(null)
+    const [loadingDelayed, setLoadingDelayed] = useState(false)
 
     useEffect(() => {
         const loadMarket = async () => {
             setIsLoading(true)
+            setLoadingDelayed(false)
+            
+            // Show delayed message after 3 seconds
+            const delayTimer = setTimeout(() => {
+                setLoadingDelayed(true)
+            }, 3000)
+            
             try {
                 const cleanId = String(id).replace('field', '')
                 
@@ -29,7 +37,10 @@ export default function MarketDetail() {
             } catch (error) {
                 console.error('Error loading market:', error)
             }
+            
+            clearTimeout(delayTimer)
             setIsLoading(false)
+            setLoadingDelayed(false)
         }
         loadMarket()
     }, [id])
@@ -81,6 +92,20 @@ export default function MarketDetail() {
                 <div className="skeleton" style={{ height: 40, width: '60%', marginBottom: 24 }} />
                 <div className="skeleton" style={{ height: 200, marginBottom: 24 }} />
                 <div className="skeleton" style={{ height: 300 }} />
+                {loadingDelayed && (
+                    <div style={{
+                        marginTop: 'var(--spacing-lg)',
+                        padding: 'var(--spacing-md)',
+                        background: 'var(--color-bg-card)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border)',
+                        textAlign: 'center',
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '0.9rem'
+                    }}>
+                        Fetching data from blockchain... This may take a moment.
+                    </div>
+                )}
             </div>
         )
     }
