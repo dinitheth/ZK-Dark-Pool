@@ -132,6 +132,27 @@ export default function CreateMarket() {
                     })
                 })
                 console.log('Market indexed in backend')
+
+                // Also add to markets cache for instant loading
+                const newMarket = {
+                    id: marketId.toString(),
+                    question: formData.question,
+                    creator: publicKey,
+                    resolutionHeight: resolutionHeight,
+                    resolved: false,
+                    winningOutcome: 0,
+                    totalYes: 0,
+                    totalNo: 0,
+                    totalPool: 0,
+                    currentBlockHeight: currentHeight,
+                    ipfsCid: ipfsResult?.cid || ''
+                }
+                await fetch('/api/markets/cache', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ markets: [newMarket] })
+                })
+                console.log('Market added to cache')
             } catch (idxError) {
                 console.error('Failed to index market:', idxError)
             }
