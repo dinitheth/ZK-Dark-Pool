@@ -305,23 +305,22 @@ class AleoService {
 
             if (count === 0) return []
 
-            // Fetch indexed questions from backend
+            // Fetch indexed questions from backend (use proxy /api)
             let indexedQuestions = {}
-            const indexerUrl = import.meta.env.VITE_INDEXER_URL
-            if (indexerUrl) {
-                try {
-                    const response = await fetch(`${indexerUrl}/api/questions`)
-                    if (response.ok) {
-                        const data = await response.json()
-                        // Create lookup map by marketId
+            try {
+                const response = await fetch('/api/questions')
+                if (response.ok) {
+                    const data = await response.json()
+                    // Create lookup map by marketId
+                    if (Array.isArray(data)) {
                         data.forEach(q => {
                             indexedQuestions[q.marketId] = q
                         })
-                        console.log('Fetched indexed questions:', Object.keys(indexedQuestions).length)
                     }
-                } catch (err) {
-                    console.error('Failed to fetch indexed questions:', err)
+                    console.log('Fetched indexed questions:', Object.keys(indexedQuestions).length)
                 }
+            } catch (err) {
+                console.error('Failed to fetch indexed questions:', err)
             }
 
             // Fetch all market IDs in parallel first
@@ -343,14 +342,13 @@ class AleoService {
                 ])
 
                 // Merge with backend data if available
-                const cleanId = marketId.replace('field', '')
+                const cleanId = String(marketId).replace('field', '')
                 const backendData = indexedQuestions[cleanId]
 
                 return {
-                    id: marketId,
+                    id: cleanId,
                     questionHash: questionHash,
-                    // If we have backend data, use it. Otherwise fallback to ID.
-                    question: backendData ? backendData.question : `Market #${marketId}`,
+                    question: backendData ? backendData.question : `Market #${cleanId}`,
                     ipfsCid: backendData ? backendData.ipfsCid : undefined,
                     ...marketInfo,
                     ...poolState,
@@ -362,6 +360,59 @@ class AleoService {
             console.error('Error fetching all markets:', error)
             return []
         }
+    }
+    
+    /**
+     * Fetch a single market with full details
+     * @param {string} marketId - Market ID
+     * @returns {Promise<Object|null>}
+     */
+    async getMarketWithDetails(marketId) {
+        try {
+            const cleanId = String(marketId).replace('field', '')
+            
+            // Fetch blockchain data and backend data in parallel
+            const [marketInfo, poolState, questionHash, backendData] = await Promise.all([
+                this.getMarket(cleanId),
+                this.getPool(cleanId),
+                this.getMarketQuestionHash(cleanId),
+                this.fetchQuestionFromBackend(cleanId)
+            ])
+            
+            if (!marketInfo) return null
+            
+            return {
+                id: cleanId,
+                questionHash: questionHash,
+                question: backendData?.question || `Market #${cleanId}`,
+                description: backendData?.description || '',
+                ipfsCid: backendData?.ipfsCid,
+                ...marketInfo,
+                totalYes: poolState?.totalYes || 0,
+                totalNo: poolState?.totalNo || 0,
+                totalPool: poolState?.totalPool || 0,
+            }
+        } catch (error) {
+            console.error('Error fetching market details:', error)
+            return null
+        }
+    }
+    
+    /**
+     * Fetch question text from backend
+     * @param {string} marketId
+     * @returns {Promise<Object|null>}
+     */
+    async fetchQuestionFromBackend(marketId) {
+        try {
+            const response = await fetch(`/api/question/${marketId}`)
+            if (response.ok) {
+                return await response.json()
+            }
+        } catch (error) {
+            console.warn('Backend fetch failed:', error)
+        }
+        return null
     }
 
     /**

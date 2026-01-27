@@ -5,7 +5,7 @@ const IPFS_GATEWAYS = [
     'https://dweb.link/ipfs/',
 ]
 
-const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || ''
+const INDEXER_URL = ''
 
 class IPFSService {
     async hashQuestion(question) {
@@ -61,7 +61,7 @@ class IPFSService {
 
     async indexQuestion(hash, question, ipfsCid = null, marketId = null) {
         try {
-            const response = await fetch(`${INDEXER_URL}/api/index`, {
+            const response = await fetch('/api/index', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hash, question, ipfsCid, marketId })
@@ -77,11 +77,11 @@ class IPFSService {
         return false
     }
 
-    async fetchQuestion(questionHash) {
-        const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
+    async fetchQuestion(marketId) {
+        const cleanId = String(marketId).replace('field', '')
 
         try {
-            const response = await fetch(`${INDEXER_URL}/api/question/${hashStr}`)
+            const response = await fetch(`/api/question/${cleanId}`)
             if (response.ok) {
                 const data = await response.json()
                 return data.question
@@ -93,11 +93,11 @@ class IPFSService {
         return null
     }
 
-    async fetchQuestionWithCid(questionHash) {
-        const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
+    async fetchQuestionWithCid(marketId) {
+        const cleanId = String(marketId).replace('field', '')
 
         try {
-            const response = await fetch(`${INDEXER_URL}/api/question/${hashStr}`)
+            const response = await fetch(`/api/question/${cleanId}`)
             if (response.ok) {
                 const data = await response.json()
 

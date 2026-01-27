@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
-import mongoose from 'mongoose'
 import dotenv from 'dotenv'
+import pg from 'pg'
 
 dotenv.config()
 
@@ -9,121 +9,73 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// MongoDB Connection Pattern for Serverless
-const MONGODB_URI = process.env.MONGODB_URI
+const { Pool } = pg
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+})
 
-if (!MONGODB_URI) {
-    console.warn('Warning: MONGODB_URI is not defined in environment variables.')
-}
-
-let cached = global.mongoose
-
-if (!cached) {
-    cached = global.mongoose = { conn: null, promise: null }
-}
-
-async function connectToDatabase() {
-    if (cached.conn) {
-        return cached.conn
-    }
-
-    if (!cached.promise) {
-        const opts = {
-            bufferCommands: false,
-            serverApi: {
-                version: '1',
-                strict: true,
-                deprecationErrors: true,
-            }
-        }
-
-        console.log('Connecting to MongoDB...')
-        cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-            console.log('Connected to MongoDB successfully')
-            return mongoose
-        }).catch(err => {
-            console.error('MongoDB connection error:', err)
-            throw err
-        })
-    }
-
+async function initDatabase() {
     try {
-        cached.conn = await cached.promise
-    } catch (e) {
-        cached.promise = null
-        throw e
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS market_questions (
+                market_id VARCHAR(255) PRIMARY KEY,
+                question TEXT NOT NULL,
+                hash VARCHAR(255),
+                ipfs_cid VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `)
+        console.log('Database initialized successfully')
+    } catch (error) {
+        console.error('Database initialization failed:', error)
     }
-
-    return cached.conn
 }
 
-// Routes
-app.use(async (req, res, next) => {
-    // Ensure DB is connected before handling request
-    if (MONGODB_URI) {
-        try {
-            await connectToDatabase()
-        } catch (error) {
-            console.error("Database connection failed for request")
-        }
-    }
-    next()
-})
+initDatabase()
 
-// Schema Definition
-const QuestionSchema = new mongoose.Schema({
-    hash: { type: String, required: true, unique: true },
-    question: { type: String, required: true },
-    ipfsCid: String,
-    marketId: String,
-    createdAt: { type: Number, default: Date.now }
-})
-
-const Question = mongoose.model('Question', QuestionSchema)
-
-// Routes
 app.post('/api/index', async (req, res) => {
     const { hash, question, ipfsCid, marketId } = req.body
 
-    if (!hash || !question) {
-        return res.status(400).json({ error: 'hash and question required' })
+    if (!marketId || !question) {
+        return res.status(400).json({ error: 'marketId and question required' })
     }
 
     try {
-        const hashStr = String(hash)
+        const cleanMarketId = String(marketId).replace('field', '')
+        
+        await pool.query(`
+            INSERT INTO market_questions (market_id, question, hash, ipfs_cid)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (market_id) 
+            DO UPDATE SET question = $2, hash = $3, ipfs_cid = $4, created_at = CURRENT_TIMESTAMP
+        `, [cleanMarketId, question, hash || null, ipfsCid || null])
 
-        // Upsert: Update if exists, Insert if new
-        await Question.findOneAndUpdate(
-            { hash: hashStr },
-            {
-                hash: hashStr,
-                question,
-                ipfsCid: ipfsCid || null,
-                marketId: marketId || null,
-                createdAt: Date.now()
-            },
-            { upsert: true, new: true }
-        )
-
-        console.log(`Indexed question: ${hashStr.slice(0, 16)}...`)
-        res.json({ success: true, hash: hashStr })
+        console.log(`Indexed question for market ${cleanMarketId}: "${question.slice(0, 40)}..."`)
+        res.json({ success: true, marketId: cleanMarketId })
     } catch (error) {
         console.error('Error indexing question:', error)
         res.status(500).json({ error: 'Internal server error' })
     }
 })
 
-app.get('/api/question/:hash', async (req, res) => {
+app.get('/api/question/:marketId', async (req, res) => {
     try {
-        const hashStr = String(req.params.hash)
-        const entry = await Question.findOne({ hash: hashStr })
+        const cleanId = String(req.params.marketId).replace('field', '')
+        
+        const result = await pool.query(
+            'SELECT * FROM market_questions WHERE market_id = $1',
+            [cleanId]
+        )
 
-        if (entry) {
+        if (result.rows.length > 0) {
+            const row = result.rows[0]
             res.json({
-                question: entry.question,
-                ipfsCid: entry.ipfsCid,
-                marketId: entry.marketId,
-                createdAt: entry.createdAt
+                marketId: row.market_id,
+                question: row.question,
+                hash: row.hash,
+                ipfsCid: row.ipfs_cid,
+                createdAt: row.created_at
             })
         } else {
             res.status(404).json({ error: 'Question not found' })
@@ -136,30 +88,32 @@ app.get('/api/question/:hash', async (req, res) => {
 
 app.get('/api/questions', async (req, res) => {
     try {
-        const questions = await Question.find().sort({ createdAt: -1 })
-
-        // Convert array to object map to match original API format if needed
-        // But frontend likely iterates over values.
-        // Let's match the original format: { hash: { ... } }
-        const questionIndex = {}
-        questions.forEach(q => {
-            questionIndex[q.hash] = {
-                question: q.question,
-                ipfsCid: q.ipfsCid,
-                marketId: q.marketId,
-                createdAt: q.createdAt
-            }
-        })
-
-        res.json(questionIndex)
+        const result = await pool.query(
+            'SELECT * FROM market_questions ORDER BY created_at DESC'
+        )
+        
+        const questions = result.rows.map(row => ({
+            marketId: row.market_id,
+            question: row.question,
+            hash: row.hash,
+            ipfsCid: row.ipfs_cid,
+            createdAt: row.created_at
+        }))
+        
+        res.json(questions)
     } catch (error) {
         console.error('Error fetching questions:', error)
         res.status(500).json({ error: 'Internal server error' })
     }
 })
 
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' })
+app.get('/api/health', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT COUNT(*) as count FROM market_questions')
+        res.json({ status: 'ok', storage: 'postgresql', questionCount: parseInt(result.rows[0].count) })
+    } catch (error) {
+        res.json({ status: 'ok', storage: 'postgresql', error: error.message })
+    }
 })
 
 const PORT = process.env.PORT || 3001

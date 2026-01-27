@@ -10,9 +10,10 @@ This is a decentralized prediction market that allows users to bet on binary out
 
 - **Frontend**: React 18 + Vite (port 5000)
 - **Backend**: Node.js + Express API (port 3001)
-- **Database**: MongoDB (requires MONGODB_URI environment variable)
+- **Database**: PostgreSQL (uses DATABASE_URL for question indexing)
 - **Blockchain**: Aleo Testnet with Leo smart contracts
 - **Wallet**: Leo Wallet browser extension
+- **Program ID**: `dark_pool_marketv2.aleo`
 
 ## Project Structure
 
@@ -28,19 +29,27 @@ ZK-Dark-Pool/
 │   │   └── config.js         # App configuration
 │   └── vite.config.js
 └── backend/                  # Express API
-    ├── server.js             # API endpoints
+    ├── server.js             # API endpoints (PostgreSQL)
     └── package.json
 ```
 
-## Environment Variables
+## How It Works
 
-- `MONGODB_URI`: MongoDB connection string for the question indexer (optional for basic operation)
-- `VITE_INDEXER_URL`: Backend indexer URL (for production)
+1. **Creating Markets**: Users create prediction markets with a question. The question text is stored in PostgreSQL, and a hash is stored on-chain.
+2. **Placing Bets**: Bets are encrypted on-chain as private "records" - only the bettor can see their position.
+3. **Market Resolution**: Only the market creator can resolve when the resolution block height is reached.
+4. **Claiming Winnings**: Winners prove ownership via ZK proof without revealing bet details.
+
+## Important Notes
+
+- Markets created before the indexing system was set up will show as "Market #ID" 
+- Use "Track Existing" button on Markets page to add question text for older markets
+- The frontend proxies /api calls to the backend on port 3001
 
 ## Running the Application
 
 The application runs with two workflows:
-1. **Backend API**: Runs on port 3001, handles question indexing
+1. **Backend API**: Runs on port 3001, handles question indexing via PostgreSQL
 2. **Frontend**: Runs on port 5000, serves the React application
 
 Both workflows start automatically when the Repl is run.
@@ -51,3 +60,4 @@ Both workflows start automatically when the Repl is run.
 - Zero-Knowledge Proofs: Winners claim without revealing bet details
 - Leo Wallet Integration: Browser extension for signing transactions
 - Real-time market data from Aleo blockchain
+- PostgreSQL persistence for question text indexing
