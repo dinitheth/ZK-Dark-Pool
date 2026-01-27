@@ -340,8 +340,8 @@ class AleoService {
                     markets.push({
                         id: marketId,
                         questionHash: questionHash,
-                        // If we have backend data, use it. Otherwise undefined (handled by Markets.jsx fallback)
-                        question: backendData ? backendData.question : undefined,
+                        // If we have backend data, use it. Otherwise fallback to ID.
+                        question: backendData ? backendData.question : `Market #${marketId}`,
                         ipfsCid: backendData ? backendData.ipfsCid : undefined,
                         ...marketInfo,
                         ...poolState,
