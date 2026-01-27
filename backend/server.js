@@ -10,9 +10,10 @@ app.use(cors())
 app.use(express.json())
 
 const { Pool } = pg
+const dbUrl = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+    connectionString: dbUrl,
+    ssl: dbUrl?.includes('localhost') ? false : { rejectUnauthorized: false }
 })
 
 async function initDatabase() {
