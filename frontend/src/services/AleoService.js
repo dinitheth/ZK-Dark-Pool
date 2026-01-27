@@ -324,30 +324,38 @@ class AleoService {
                 }
             }
 
-            const markets = []
+            // Fetch all market IDs in parallel first
+            const idPromises = []
             for (let i = 0; i < count; i++) {
-                const marketId = await this.getMarketIdAtIndex(i)
-                if (marketId) {
-                    const marketInfo = await this.getMarket(marketId)
-                    const poolState = await this.getPool(marketId)
-                    const questionHash = await this.getMarketQuestionHash(marketId)
-
-                    // Merge with backend data if available
-                    // Removing 'field' suffix for matching if present
-                    const cleanId = marketId.replace('field', '')
-                    const backendData = indexedQuestions[cleanId]
-
-                    markets.push({
-                        id: marketId,
-                        questionHash: questionHash,
-                        // If we have backend data, use it. Otherwise fallback to ID.
-                        question: backendData ? backendData.question : `Market #${marketId}`,
-                        ipfsCid: backendData ? backendData.ipfsCid : undefined,
-                        ...marketInfo,
-                        ...poolState,
-                    })
-                }
+                idPromises.push(this.getMarketIdAtIndex(i))
             }
+            const marketIds = await Promise.all(idPromises)
+
+            // Filter out nulls
+            const validIds = marketIds.filter(id => id !== null)
+
+            // Fetch details for all valid IDs in parallel
+            const markets = await Promise.all(validIds.map(async (marketId) => {
+                const [marketInfo, poolState, questionHash] = await Promise.all([
+                    this.getMarket(marketId),
+                    this.getPool(marketId),
+                    this.getMarketQuestionHash(marketId)
+                ])
+
+                // Merge with backend data if available
+                const cleanId = marketId.replace('field', '')
+                const backendData = indexedQuestions[cleanId]
+
+                return {
+                    id: marketId,
+                    questionHash: questionHash,
+                    // If we have backend data, use it. Otherwise fallback to ID.
+                    question: backendData ? backendData.question : `Market #${marketId}`,
+                    ipfsCid: backendData ? backendData.ipfsCid : undefined,
+                    ...marketInfo,
+                    ...poolState,
+                }
+            }))
 
             return markets
         } catch (error) {
