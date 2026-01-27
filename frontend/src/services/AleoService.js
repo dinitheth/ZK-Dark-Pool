@@ -190,51 +190,105 @@ class AleoService {
         }
     }
 
-    async getAllMarkets() {
+    async getAllMarkets(forceRefresh = false) {
         try {
-            const count = await this.getMarketCount()
-            console.log('Total markets on-chain:', count)
-
-            if (count === 0) return []
-
-            const [indexedQuestions, blockHeight] = await Promise.all([
-                this.fetchAllQuestionsFromBackend(),
-                this.getCurrentBlockHeight()
-            ])
-
-            const idPromises = []
-            for (let i = 0; i < count; i++) {
-                idPromises.push(this.getMarketIdAtIndex(i))
-            }
-            const marketIds = await Promise.all(idPromises)
-            const validIds = marketIds.filter(id => id !== null)
-
-            const markets = await Promise.all(validIds.map(async (marketId) => {
-                const [marketInfo, poolState] = await Promise.all([
-                    this.getMarket(marketId),
-                    this.getPool(marketId)
-                ])
-
-                const cleanId = String(marketId).replace('field', '')
-                const backendData = indexedQuestions[cleanId]
-
-                return {
-                    id: cleanId,
-                    question: backendData ? backendData.question : `Market #${cleanId}`,
-                    ipfsCid: backendData?.ipfsCid,
-                    ...marketInfo,
-                    totalYes: poolState?.totalYes || 0,
-                    totalNo: poolState?.totalNo || 0,
-                    totalPool: poolState?.totalPool || 0,
-                    currentBlockHeight: blockHeight,
+            if (!forceRefresh) {
+                const cached = await this.fetchCachedMarkets()
+                if (cached.length > 0) {
+                    console.log('Loaded from cache:', cached.length, 'markets')
+                    this.refreshMarketsInBackground()
+                    return cached
                 }
-            }))
+            }
 
-            return markets
+            return await this.fetchMarketsFromBlockchain()
         } catch (error) {
             console.error('Error fetching all markets:', error)
             return []
         }
+    }
+
+    async fetchCachedMarkets() {
+        try {
+            const response = await fetch('/api/markets/cached')
+            if (response.ok) {
+                const data = await response.json()
+                if (data.markets && data.markets.length > 0) {
+                    return data.markets
+                }
+            }
+        } catch (error) {
+            console.log('Cache miss, fetching from blockchain')
+        }
+        return []
+    }
+
+    async refreshMarketsInBackground() {
+        setTimeout(async () => {
+            try {
+                const markets = await this.fetchMarketsFromBlockchain()
+                if (markets.length > 0) {
+                    await fetch('/api/markets/cache', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ markets })
+                    })
+                    console.log('Cache updated with fresh blockchain data')
+                }
+            } catch (error) {
+                console.error('Background refresh failed:', error)
+            }
+        }, 100)
+    }
+
+    async fetchMarketsFromBlockchain() {
+        const count = await this.getMarketCount()
+        console.log('Total markets on-chain:', count)
+
+        if (count === 0) return []
+
+        const [indexedQuestions, blockHeight] = await Promise.all([
+            this.fetchAllQuestionsFromBackend(),
+            this.getCurrentBlockHeight()
+        ])
+
+        const idPromises = []
+        for (let i = 0; i < count; i++) {
+            idPromises.push(this.getMarketIdAtIndex(i))
+        }
+        const marketIds = await Promise.all(idPromises)
+        const validIds = marketIds.filter(id => id !== null)
+
+        const markets = await Promise.all(validIds.map(async (marketId) => {
+            const [marketInfo, poolState] = await Promise.all([
+                this.getMarket(marketId),
+                this.getPool(marketId)
+            ])
+
+            const cleanId = String(marketId).replace('field', '')
+            const backendData = indexedQuestions[cleanId]
+
+            return {
+                id: cleanId,
+                question: backendData ? backendData.question : `Market #${cleanId}`,
+                ipfsCid: backendData?.ipfsCid,
+                ...marketInfo,
+                totalYes: poolState?.totalYes || 0,
+                totalNo: poolState?.totalNo || 0,
+                totalPool: poolState?.totalPool || 0,
+                currentBlockHeight: blockHeight,
+            }
+        }))
+
+        if (markets.length > 0) {
+            fetch('/api/markets/cache', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ markets })
+            }).catch(() => {})
+        }
+
+        return markets
     }
 
     async fetchAllQuestionsFromBackend() {
