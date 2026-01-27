@@ -1,29 +1,20 @@
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { aleoService } from '../services/AleoService'
 
 export default function MarketCard({ market }) {
     const navigate = useNavigate()
-    const [currentBlockHeight, setCurrentBlockHeight] = useState(null)
-
-    useEffect(() => {
-        aleoService.getCurrentBlockHeight().then(setCurrentBlockHeight)
-    }, [])
 
     const formatCredits = (amount) => {
         return new Intl.NumberFormat('en-US', {
             maximumFractionDigits: 0,
-        }).format(amount)
+        }).format(amount || 0)
     }
 
     const getTimeRemaining = () => {
-        // Use block height for blockchain markets, timestamp for local/demo
-        if (market.resolutionHeight && currentBlockHeight) {
-            const blocksRemaining = market.resolutionHeight - currentBlockHeight
+        if (market.resolutionHeight && market.currentBlockHeight) {
+            const blocksRemaining = market.resolutionHeight - market.currentBlockHeight
             if (blocksRemaining <= 0) return 'Ended'
             
-            // Aleo blocks ~3 seconds each
-            const secondsRemaining = blocksRemaining * 3
+            const secondsRemaining = blocksRemaining * 5
             const hours = Math.floor(secondsRemaining / 3600)
             const days = Math.floor(hours / 24)
             const remainingHours = hours % 24
@@ -33,7 +24,6 @@ export default function MarketCard({ market }) {
             return `~${Math.floor(secondsRemaining / 60)}m left`
         }
         
-        // Fallback for timestamp-based markets
         if (market.resolutionTime) {
             const now = Date.now()
             const resolution = market.resolutionTime * 1000
@@ -79,7 +69,7 @@ export default function MarketCard({ market }) {
                 <div className="pool-stat">
                     <div className="pool-stat-label">Total</div>
                     <div className="pool-stat-value">
-                        {formatCredits(market.totalYes + market.totalNo)}
+                        {formatCredits((market.totalYes || 0) + (market.totalNo || 0))}
                     </div>
                 </div>
             </div>
