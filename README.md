@@ -153,6 +153,7 @@ All endpoints are handled by the serverless function at `/api`:
 - [Provable Explorer](https://testnet.explorer.provable.com/)
 - [Neon PostgreSQL](https://neon.tech/)
 - [Vercel](https://vercel.com/)
+- [Leo Docs](https://docs.leo.app/aleo-wallet-adapter/)
 
 ## License
 
