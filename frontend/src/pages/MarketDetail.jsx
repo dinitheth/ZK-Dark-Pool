@@ -13,11 +13,6 @@ export default function MarketDetail() {
     const [betPlaced, setBetPlaced] = useState(null)
     const [currentBlockHeight, setCurrentBlockHeight] = useState(null)
     const [loadingDelayed, setLoadingDelayed] = useState(false)
-    const [seedYes, setSeedYes] = useState('')
-    const [seedNo, setSeedNo] = useState('')
-    const [seedLoading, setSeedLoading] = useState(false)
-    const [seedError, setSeedError] = useState('')
-    const [seedSuccess, setSeedSuccess] = useState(false)
     const [resolveOutcome, setResolveOutcome] = useState(null)
     const [resolveLoading, setResolveLoading] = useState(false)
     const [resolveError, setResolveError] = useState('')
@@ -62,42 +57,6 @@ export default function MarketDetail() {
 
     const handleBetPlaced = (bet) => {
         setBetPlaced(bet)
-    }
-
-    // Seed liquidity handler (creator only)
-    const handleSeedLiquidity = async () => {
-        if (!connected || !publicKey) return
-        const yesAmt = parseInt(seedYes)
-        const noAmt = parseInt(seedNo)
-        if (!yesAmt || !noAmt || yesAmt <= 0 || noAmt <= 0) {
-            setSeedError('Enter valid amounts for both sides')
-            return
-        }
-        setSeedLoading(true)
-        setSeedError('')
-        try {
-            const inputs = aleoService.buildSeedLiquidityInputs(market.id, yesAmt, noAmt)
-            const txId = await requestTransaction({
-                address: publicKey,
-                chainId: 'testnetbeta',
-                transitions: [{
-                    program: ALEO_CONFIG.programId,
-                    functionName: 'seed_liquidity',
-                    inputs: inputs,
-                }],
-                fee: ALEO_CONFIG.fees.seedLiquidity,
-                feePrivate: false,
-            })
-            console.log('Seed liquidity tx:', txId)
-            setSeedSuccess(true)
-            setSeedYes('')
-            setSeedNo('')
-        } catch (err) {
-            console.error('Seed liquidity error:', err)
-            setSeedError(err.message?.includes('User rejected') ? 'Transaction cancelled' : (err.message || 'Failed to seed liquidity'))
-        } finally {
-            setSeedLoading(false)
-        }
     }
 
     const impliedOdds = market ? aleoService.calculateImpliedOdds(market) : { yes: 50, no: 50 }
@@ -292,39 +251,7 @@ export default function MarketDetail() {
                     </div>
                 </div>
 
-                {/* Payout Info Box */}
-                <div style={{
-                    marginTop: 'var(--spacing-lg)',
-                    padding: 'var(--spacing-md)',
-                    background: 'rgba(99, 102, 241, 0.06)',
-                    border: '1px solid rgba(99, 102, 241, 0.15)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.85rem'
-                }}>
-                    <h4 style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--color-accent)' }}>Payout Formula</h4>
-                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                        <code style={{ background: 'var(--color-bg-tertiary)', padding: '2px 6px', borderRadius: 4 }}>
-                            payout = (your_bet × total_pool) ÷ winning_pool
-                        </code>
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)' }}>
-                        <div>
-                            <span style={{ color: 'var(--color-text-muted)' }}>YES payout multiplier: </span>
-                            <strong style={{ color: 'var(--color-yes)' }}>
-                                {market.totalYes > 0 ? (totalPool / market.totalYes).toFixed(2) : '—'}x
-                            </strong>
-                        </div>
-                        <div>
-                            <span style={{ color: 'var(--color-text-muted)' }}>NO payout multiplier: </span>
-                            <strong style={{ color: 'var(--color-no)' }}>
-                                {market.totalNo > 0 ? (totalPool / market.totalNo).toFixed(2) : '—'}x
-                            </strong>
-                        </div>
-                    </div>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '8px 0 0' }}>
-                        Real credits are transferred via <code>credits.aleo</code>. Winnings calculated on-chain with u128 precision.
-                    </p>
-                </div>
+                {/* Payout Info Box - removed */}
                 
                 <div style={{
                     marginTop: 'var(--spacing-lg)',
@@ -341,47 +268,11 @@ export default function MarketDetail() {
                 </div>
             </div>
 
-            {/* Seed Liquidity Panel (creator only, when no liquidity) */}
-            {isCreator && !market.resolved && !hasLiquidity && (
-                <div className="card" style={{ marginBottom: 'var(--spacing-xl)', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
-                    <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--color-accent)' }}>
-                        💧 Seed Initial Liquidity
-                    </h3>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: 'var(--spacing-md)' }}>
-                        As the market creator, deposit credits to both YES and NO pools to bootstrap AMM pricing.
-                        Credits are transferred from your wallet via <code>credits.aleo</code>.
-                    </p>
-                    {seedError && (
-                        <div style={{ color: 'var(--color-no)', marginBottom: 'var(--spacing-sm)', padding: 'var(--spacing-sm)', background: 'var(--color-no-bg)', borderRadius: 'var(--radius-sm)' }}>
-                            {seedError}
-                        </div>
-                    )}
-                    {seedSuccess && (
-                        <div style={{ color: 'var(--color-yes)', marginBottom: 'var(--spacing-sm)', padding: 'var(--spacing-sm)', background: 'var(--color-yes-bg)', borderRadius: 'var(--radius-sm)' }}>
-                            Liquidity seed transaction submitted! Pool will update after confirmation.
-                        </div>
-                    )}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
-                        <div className="input-group">
-                            <label>YES Pool Amount (microcredits)</label>
-                            <input type="number" className="input" placeholder="50000" value={seedYes} onChange={e => setSeedYes(e.target.value)} disabled={seedLoading} min="1" />
-                        </div>
-                        <div className="input-group">
-                            <label>NO Pool Amount (microcredits)</label>
-                            <input type="number" className="input" placeholder="50000" value={seedNo} onChange={e => setSeedNo(e.target.value)} disabled={seedLoading} min="1" />
-                        </div>
-                    </div>
-                    <button className="btn btn-primary" onClick={handleSeedLiquidity} disabled={seedLoading} style={{ width: '100%' }}>
-                        {seedLoading ? 'Seeding Liquidity...' : 'Seed Liquidity (Transfer Credits)'}
-                    </button>
-                </div>
-            )}
-
             {/* Resolve Market Panel (creator/oracle, when block height reached) */}
             {canResolve && (
                 <div className="card" style={{ marginBottom: 'var(--spacing-xl)', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
                     <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--color-pending)' }}>
-                        ⚖️ Resolve Market
+                        Resolve Market
                     </h3>
                     <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: 'var(--spacing-md)' }}>
                         Resolution block height reached. As the {isOracle && !isCreator ? 'designated oracle' : 'creator'}, select the winning outcome.
@@ -525,7 +416,7 @@ export default function MarketDetail() {
                     {/* Withdraw Liquidity (creator/LP, resolved market) */}
                     {isCreator && (
                         <div style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-lg)', borderTop: '1px solid var(--color-border)' }}>
-                            <h4 style={{ marginBottom: 'var(--spacing-sm)' }}>💧 Withdraw Liquidity</h4>
+                            <h4 style={{ marginBottom: 'var(--spacing-sm)' }}>Withdraw Liquidity</h4>
                             <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', marginBottom: 'var(--spacing-sm)' }}>
                                 As the LP, withdraw your share of unclaimed pool funds.
                             </p>

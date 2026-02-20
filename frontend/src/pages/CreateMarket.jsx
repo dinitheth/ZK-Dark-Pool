@@ -15,6 +15,8 @@ export default function CreateMarket() {
         category: 'crypto',
         resolutionDays: 30,
         oracleAddress: '',
+        seedYes: '',
+        seedNo: '',
     })
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
@@ -162,7 +164,31 @@ export default function CreateMarket() {
                 console.error('Failed to index market:', idxError)
             }
 
-            // Redirect immediately to markets page
+            // Seed liquidity if the creator provided amounts
+            const seedYesAmt = parseInt(formData.seedYes)
+            const seedNoAmt = parseInt(formData.seedNo)
+            if (seedYesAmt > 0 && seedNoAmt > 0) {
+                setTxStatus('Seeding initial liquidity...')
+                try {
+                    const seedInputs = aleoService.buildSeedLiquidityInputs(marketId, seedYesAmt, seedNoAmt)
+                    await requestTransaction({
+                        address: publicKey,
+                        chainId: 'testnetbeta',
+                        transitions: [{
+                            program: ALEO_CONFIG.programId,
+                            functionName: 'seed_liquidity',
+                            inputs: seedInputs,
+                        }],
+                        fee: ALEO_CONFIG.fees.seedLiquidity,
+                        feePrivate: false,
+                    })
+                    console.log('Seed liquidity transaction sent')
+                } catch (seedErr) {
+                    console.warn('Seed liquidity failed (market was still created):', seedErr)
+                }
+            }
+
+            // Redirect to markets page
             navigate('/markets')
 
         } catch (err) {
@@ -304,6 +330,43 @@ export default function CreateMarket() {
                                 onChange={handleChange}
                                 disabled={isLoading}
                             />
+                        </div>
+                    </div>
+
+                    <div className="form-section">
+                        <h4 style={{ marginBottom: 'var(--spacing-sm)' }}>Initial Liquidity (optional)</h4>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: 'var(--spacing-md)' }}>
+                            Seed credits into both YES and NO pools to enable AMM pricing. Leave at 0 to skip.
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                            <div className="input-group">
+                                <label htmlFor="seedYes">YES Pool (microcredits)</label>
+                                <input
+                                    type="number"
+                                    id="seedYes"
+                                    name="seedYes"
+                                    className="input"
+                                    placeholder="50000"
+                                    min="0"
+                                    value={formData.seedYes || ''}
+                                    onChange={handleChange}
+                                    disabled={isLoading}
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label htmlFor="seedNo">NO Pool (microcredits)</label>
+                                <input
+                                    type="number"
+                                    id="seedNo"
+                                    name="seedNo"
+                                    className="input"
+                                    placeholder="50000"
+                                    min="0"
+                                    value={formData.seedNo || ''}
+                                    onChange={handleChange}
+                                    disabled={isLoading}
+                                />
+                            </div>
                         </div>
                     </div>
 
