@@ -98,6 +98,8 @@ export default async function handler(req, res) {
       if (!Array.isArray(markets)) {
         return res.status(400).json({ error: 'markets array required' });
       }
+      // Clear old cache and replace with current data
+      await db.query('DELETE FROM markets_cache');
       for (const market of markets) {
         const cleanId = String(market.id).replace('field', '');
         await db.query(`

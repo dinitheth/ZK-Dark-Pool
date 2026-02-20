@@ -204,8 +204,13 @@ class AleoService {
                 const cached = await this.fetchCachedMarkets()
                 if (cached.length > 0) {
                     console.log('Loaded from cache:', cached.length, 'markets')
-                    this.refreshMarketsInBackground()
-                    return cached
+                    // Validate first cached market exists on current program
+                    const testMarket = await this.getMarket(cached[0].id)
+                    if (testMarket) {
+                        this.refreshMarketsInBackground()
+                        return cached
+                    }
+                    console.log('Cached markets are stale (from old program), fetching fresh from blockchain')
                 }
             }
 
@@ -235,14 +240,14 @@ class AleoService {
         setTimeout(async () => {
             try {
                 const markets = await this.fetchMarketsFromBlockchain()
-                if (markets.length > 0) {
-                    await fetch(`${API_BASE_URL}/api/markets/cache`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ markets })
-                    })
-                    console.log('Cache updated with fresh blockchain data')
-                }
+                // Always update cache with current blockchain state
+                // This clears stale data from old program versions
+                await fetch(`${API_BASE_URL}/api/markets/cache`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ markets })
+                })
+                console.log('Cache updated with', markets.length, 'markets from blockchain')
             } catch (error) {
                 console.error('Background refresh failed:', error)
             }

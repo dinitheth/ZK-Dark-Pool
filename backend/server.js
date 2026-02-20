@@ -171,6 +171,8 @@ app.post('/api/markets/cache', async (req, res) => {
     }
 
     try {
+        // Clear old cache and replace with current data
+        await pool.query('DELETE FROM markets_cache')
         for (const market of markets) {
             const cleanId = String(market.id).replace('field', '')
             await pool.query(`
