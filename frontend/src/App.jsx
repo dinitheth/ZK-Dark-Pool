@@ -4,6 +4,7 @@ import Landing from './pages/Landing'
 import Markets from './pages/Markets'
 import CreateMarket from './pages/CreateMarket'
 import MarketDetail from './pages/MarketDetail'
+import ManifoldMarketDetail from './pages/ManifoldMarketDetail'
 import Portfolio from './pages/Portfolio'
 
 import './styles/App.css'
@@ -19,6 +20,7 @@ function App() {
                         <Route path="/" element={<Landing />} />
                         <Route path="/markets" element={<Markets />} />
                         <Route path="/create" element={<CreateMarket />} />
+                        <Route path="/market/manifold/:manifoldId" element={<ManifoldMarketDetail />} />
                         <Route path="/market/:id" element={<MarketDetail />} />
                         <Route path="/portfolio" element={<Portfolio />} />
                     </Routes>
