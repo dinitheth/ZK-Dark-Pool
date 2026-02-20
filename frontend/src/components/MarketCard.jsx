@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import aleoService from '../services/AleoService'
+import manifoldService from '../services/ManifoldService'
 
 export default function MarketCard({ market }) {
     const navigate = useNavigate()
-    const impliedOdds = aleoService.calculateImpliedOdds(market)
+    const impliedOdds = market.isManifold
+        ? { yes: market.probability || 50, no: 100 - (market.probability || 50) }
+        : aleoService.calculateImpliedOdds(market)
 
     const formatCredits = (amount) => {
         return new Intl.NumberFormat('en-US', {
@@ -12,6 +15,11 @@ export default function MarketCard({ market }) {
     }
 
     const getTimeRemaining = () => {
+        // Manifold markets use closeTime (ms)
+        if (market.isManifold && market.closeTime) {
+            return manifoldService.formatTimeRemaining(market.closeTime)
+        }
+
         if (market.resolutionHeight && market.currentBlockHeight) {
             const blocksRemaining = market.resolutionHeight - market.currentBlockHeight
             if (blocksRemaining <= 0) return 'Ended'
@@ -43,10 +51,18 @@ export default function MarketCard({ market }) {
         return 'Unknown'
     }
 
+    const handleClick = () => {
+        if (market.isManifold) {
+            navigate(`/market/manifold/${market.manifoldId}`)
+        } else {
+            navigate(`/market/${market.id}`)
+        }
+    }
+
     return (
         <div
             className="market-card animate-fade-in"
-            onClick={() => navigate(`/market/${market.id}`)}
+            onClick={handleClick}
         >
             <div className="market-card-header">
                 <h3 className="market-card-question">{market.question}</h3>
@@ -57,21 +73,21 @@ export default function MarketCard({ market }) {
 
             <div className="market-card-pool">
                 <div className="pool-stat">
-                    <div className="pool-stat-label">Yes Pool</div>
+                    <div className="pool-stat-label">{market.isManifold ? 'YES' : 'Yes Pool'}</div>
                     <div className="pool-stat-value yes">
-                        {formatCredits(market.totalYes)}
+                        {market.isManifold ? `${impliedOdds.yes.toFixed(0)}%` : formatCredits(market.totalYes)}
                     </div>
                 </div>
                 <div className="pool-stat">
-                    <div className="pool-stat-label">No Pool</div>
+                    <div className="pool-stat-label">{market.isManifold ? 'NO' : 'No Pool'}</div>
                     <div className="pool-stat-value no">
-                        {formatCredits(market.totalNo)}
+                        {market.isManifold ? `${impliedOdds.no.toFixed(0)}%` : formatCredits(market.totalNo)}
                     </div>
                 </div>
                 <div className="pool-stat">
-                    <div className="pool-stat-label">Total</div>
+                    <div className="pool-stat-label">{market.isManifold ? 'Volume' : 'Total'}</div>
                     <div className="pool-stat-value">
-                        {formatCredits((market.totalYes || 0) + (market.totalNo || 0))}
+                        {market.isManifold ? formatCredits(market.volume) : formatCredits((market.totalYes || 0) + (market.totalNo || 0))}
                     </div>
                 </div>
             </div>
@@ -105,7 +121,17 @@ export default function MarketCard({ market }) {
                 <span className="market-card-time">
                     {market.pending ? 'Confirming on blockchain...' : getTimeRemaining()}
                 </span>
-                <span className="privacy-indicator private">Hidden Positions</span>
+                {market.isManifold ? (
+                    <span style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        background: 'rgba(99, 102, 241, 0.15)',
+                        color: 'var(--color-accent)',
+                    }}>{market.category}</span>
+                ) : (
+                    <span className="privacy-indicator private">Hidden Positions</span>
+                )}
             </div>
         </div>
     )

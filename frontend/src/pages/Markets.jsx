@@ -4,6 +4,7 @@ import MarketCard from '../components/MarketCard'
 import useAleo from '../hooks/useAleo'
 import { ALEO_CONFIG, getExplorerUrl } from '../config'
 import aleoService from '../services/AleoService'
+import manifoldService from '../services/ManifoldService'
 
 // Demo markets for display when program not deployed
 const DEMO_MARKETS = [
@@ -68,12 +69,21 @@ const DEMO_MARKETS = [
 export default function Markets() {
     const { programDeployed, isCheckingProgram, connected } = useAleo()
     const [markets, setMarkets] = useState([])
+    const [manifoldMarkets, setManifoldMarkets] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [filter, setFilter] = useState('all')
+    const [tab, setTab] = useState('onchain') // 'onchain' | 'live'
 
     useEffect(() => {
         const loadMarkets = async () => {
             setIsLoading(true)
+
+            // Always fetch Manifold markets in background
+            manifoldService.getPopularMarkets(20).then(m => {
+                setManifoldMarkets(m)
+            }).catch(err => {
+                console.error('Failed to load Manifold markets:', err)
+            })
 
             if (!programDeployed) {
                 console.log('Program not deployed, showing demo markets')
@@ -84,29 +94,17 @@ export default function Markets() {
 
             try {
                 console.log('Fetching markets from blockchain & backend...')
-
-                // Fetch markets (AleoService now handles backend merging)
                 const allMarkets = await aleoService.getAllMarkets()
                 console.log('All markets:', allMarkets)
 
-                // If any markets are pending (not on chain but in backend), we could fetch them here
-                // But for now, we rely on chain data as source of truth
-
                 if (allMarkets.length === 0) {
                     console.log('No markets found. Create one to get started!')
                 }
 
                 setMarkets(allMarkets)
-
-                if (allMarkets.length === 0) {
-                    console.log('No markets found. Create one to get started!')
-                }
-
-                setMarkets(allMarkets)
-
             } catch (error) {
                 console.error('Error loading markets:', error)
-                setMarkets(DEMO_MARKETS) // Fallback to demo
+                setMarkets(DEMO_MARKETS)
             }
 
             setIsLoading(false)
@@ -121,6 +119,14 @@ export default function Markets() {
         return true
     })
 
+    const filteredManifold = manifoldMarkets.filter(market => {
+        if (filter === 'open') return !market.resolved
+        if (filter === 'resolved') return market.resolved
+        return true
+    })
+
+    const displayMarkets = tab === 'live' ? filteredManifold : filteredMarkets
+
     return (
         <div className="markets-page">
             <div className="markets-header">
@@ -134,6 +140,53 @@ export default function Markets() {
                     + Create Market
                 </Link>
             </div>
+
+            {/* Tab switcher: On-chain vs Live Data */}
+            <div style={{
+                display: 'flex',
+                gap: 'var(--spacing-sm)',
+                marginBottom: 'var(--spacing-lg)',
+                borderBottom: '1px solid var(--color-border)',
+                paddingBottom: 'var(--spacing-sm)',
+            }}>
+                <button
+                    className={`btn ${tab === 'onchain' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setTab('onchain')}
+                    style={{ fontSize: '0.85rem' }}
+                >
+                    On-Chain Markets
+                </button>
+                <button
+                    className={`btn ${tab === 'live' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setTab('live')}
+                    style={{ fontSize: '0.85rem', position: 'relative' }}
+                >
+                    Live Market Data
+                    {manifoldMarkets.length > 0 && (
+                        <span style={{
+                            marginLeft: 6,
+                            background: 'var(--color-accent)',
+                            color: 'white',
+                            borderRadius: 'var(--radius-full)',
+                            padding: '1px 7px',
+                            fontSize: '0.7rem',
+                        }}>{manifoldMarkets.length}</span>
+                    )}
+                </button>
+            </div>
+
+            {tab === 'live' && (
+                <p style={{
+                    color: 'var(--color-text-muted)',
+                    fontSize: '0.8rem',
+                    marginBottom: 'var(--spacing-md)',
+                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    borderRadius: 'var(--radius-md)',
+                }}>
+                    Real-time data from Manifold Markets. Shows live probabilities and trading volume.
+                </p>
+            )}
 
             <div style={{
                 display: 'flex',
@@ -160,7 +213,7 @@ export default function Markets() {
                 </button>
             </div>
 
-            {isLoading ? (
+            {isLoading && tab === 'onchain' ? (
                 <div className="markets-grid">
                     {[1, 2, 3, 4].map(i => (
                         <div key={i} className="market-card">
@@ -170,18 +223,22 @@ export default function Markets() {
                         </div>
                     ))}
                 </div>
-            ) : filteredMarkets.length === 0 ? (
+            ) : displayMarkets.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-state-icon"></div>
-                    <h3 className="empty-state-title">No markets found</h3>
-                    <p>Be the first to create a prediction market!</p>
-                    <Link to="/create" className="btn btn-primary" style={{ marginTop: 'var(--spacing-lg)' }}>
-                        Create Market
-                    </Link>
+                    <h3 className="empty-state-title">
+                        {tab === 'live' ? 'Loading live markets...' : 'No markets found'}
+                    </h3>
+                    <p>{tab === 'live' ? 'Fetching data from Manifold Markets API...' : 'Be the first to create a prediction market!'}</p>
+                    {tab === 'onchain' && (
+                        <Link to="/create" className="btn btn-primary" style={{ marginTop: 'var(--spacing-lg)' }}>
+                            Create Market
+                        </Link>
+                    )}
                 </div>
             ) : (
                 <div className="markets-grid">
-                    {filteredMarkets.map(market => (
+                    {displayMarkets.map(market => (
                         <MarketCard key={market.id} market={market} />
                     ))}
                 </div>

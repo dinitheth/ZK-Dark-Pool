@@ -14,14 +14,10 @@ dark_pool_market/build/
 dark_pool_market/outputs/
 
 # Environment
-.env
-.env.local
-.env.production
 *.private
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 
@@ -39,3 +35,4 @@ coverage/
 # Cache
 .cache/
 .parcel-cache/
+config.bat
