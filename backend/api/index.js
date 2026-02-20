@@ -32,6 +32,22 @@ async function initDatabase() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS price_history (
+      id SERIAL PRIMARY KEY,
+      market_id VARCHAR(255) NOT NULL,
+      yes_price NUMERIC(10,6) NOT NULL,
+      no_price NUMERIC(10,6) NOT NULL,
+      liquidity_yes BIGINT DEFAULT 0,
+      liquidity_no BIGINT DEFAULT 0,
+      total_pool BIGINT DEFAULT 0,
+      recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_price_history_market
+    ON price_history (market_id, recorded_at DESC)
+  `);
 }
 
 let dbInitialized = false;
@@ -134,6 +150,41 @@ export default async function handler(req, res) {
         `, [cleanId, JSON.stringify(market)]);
       }
       return res.json({ success: true, count: markets.length });
+    }
+
+    // Price history: record a snapshot
+    if (path === '/prices/snapshot' && req.method === 'POST') {
+      const { marketId, yesPrice, noPrice, liquidityYes, liquidityNo, totalPool } = req.body;
+      if (!marketId || yesPrice == null || noPrice == null) {
+        return res.status(400).json({ error: 'marketId, yesPrice, noPrice required' });
+      }
+      const cleanId = String(marketId).replace('field', '');
+      await db.query(`
+        INSERT INTO price_history (market_id, yes_price, no_price, liquidity_yes, liquidity_no, total_pool)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [cleanId, yesPrice, noPrice, liquidityYes || 0, liquidityNo || 0, totalPool || 0]);
+      return res.json({ success: true });
+    }
+
+    // Price history: get history for a market
+    if (path.startsWith('/prices/') && req.method === 'GET') {
+      const marketId = path.replace('/prices/', '').replace('field', '');
+      const limit = parseInt(url.searchParams.get('limit')) || 100;
+      const result = await db.query(
+        'SELECT yes_price, no_price, liquidity_yes, liquidity_no, total_pool, recorded_at FROM price_history WHERE market_id = $1 ORDER BY recorded_at DESC LIMIT $2',
+        [marketId, limit]
+      );
+      return res.json({
+        marketId,
+        history: result.rows.map(r => ({
+          yesPrice: parseFloat(r.yes_price),
+          noPrice: parseFloat(r.no_price),
+          liquidityYes: parseInt(r.liquidity_yes),
+          liquidityNo: parseInt(r.liquidity_no),
+          totalPool: parseInt(r.total_pool),
+          recordedAt: r.recorded_at,
+        })).reverse()
+      });
     }
 
     if ((path === '/' || path === '') && req.method === 'GET') {

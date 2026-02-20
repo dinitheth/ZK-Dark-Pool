@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom'
+import aleoService from '../services/AleoService'
 
 export default function MarketCard({ market }) {
     const navigate = useNavigate()
+    const impliedOdds = aleoService.calculateImpliedOdds(market)
 
     const formatCredits = (amount) => {
         return new Intl.NumberFormat('en-US', {
@@ -72,6 +74,31 @@ export default function MarketCard({ market }) {
                         {formatCredits((market.totalYes || 0) + (market.totalNo || 0))}
                     </div>
                 </div>
+            </div>
+
+            {/* Implied Odds Bar */}
+            <div style={{
+                margin: '0 0 var(--spacing-sm)',
+                height: 6,
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--color-no)',
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    width: `${impliedOdds.yes}%`,
+                    height: '100%',
+                    background: 'var(--color-yes)',
+                    transition: 'width 0.3s ease'
+                }} />
+            </div>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.7rem',
+                marginBottom: 'var(--spacing-sm)'
+            }}>
+                <span style={{ color: 'var(--color-yes)' }}>YES {impliedOdds.yes.toFixed(0)}%</span>
+                <span style={{ color: 'var(--color-no)' }}>NO {impliedOdds.no.toFixed(0)}%</span>
             </div>
 
             <div className="market-card-footer">

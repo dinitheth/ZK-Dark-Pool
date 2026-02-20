@@ -78,6 +78,7 @@ class AleoService {
             const resolutionMatch = cleaned.match(/resolution_height:\s*(\d+)u32/)
             const resolvedMatch = cleaned.match(/resolved:\s*(true|false)/)
             const outcomeMatch = cleaned.match(/winning_outcome:\s*(\d+)u8/)
+            const oracleMatch = cleaned.match(/oracle:\s*(aleo1[a-z0-9]+)/)
 
             if (!creatorMatch || !resolutionMatch || !resolvedMatch || !outcomeMatch) {
                 return null
@@ -88,6 +89,7 @@ class AleoService {
                 resolutionHeight: parseInt(resolutionMatch[1]),
                 resolved: resolvedMatch[1] === 'true',
                 winningOutcome: parseInt(outcomeMatch[1]),
+                oracle: oracleMatch ? oracleMatch[1] : creatorMatch[1],
             }
         } catch (error) {
             return null
@@ -100,6 +102,9 @@ class AleoService {
             const yesMatch = cleaned.match(/total_yes:\s*(\d+)u64/)
             const noMatch = cleaned.match(/total_no:\s*(\d+)u64/)
             const poolMatch = cleaned.match(/total_pool:\s*(\d+)u64/)
+            const liqYesMatch = cleaned.match(/liquidity_yes:\s*(\d+)u64/)
+            const liqNoMatch = cleaned.match(/liquidity_no:\s*(\d+)u64/)
+            const claimedMatch = cleaned.match(/total_claimed:\s*(\d+)u64/)
 
             if (!yesMatch || !noMatch || !poolMatch) {
                 return null
@@ -109,6 +114,9 @@ class AleoService {
                 totalYes: parseInt(yesMatch[1]),
                 totalNo: parseInt(noMatch[1]),
                 totalPool: parseInt(poolMatch[1]),
+                liquidityYes: liqYesMatch ? parseInt(liqYesMatch[1]) : 0,
+                liquidityNo: liqNoMatch ? parseInt(liqNoMatch[1]) : 0,
+                totalClaimed: claimedMatch ? parseInt(claimedMatch[1]) : 0,
             }
         } catch (error) {
             return null
@@ -276,6 +284,9 @@ class AleoService {
                 totalYes: poolState?.totalYes || 0,
                 totalNo: poolState?.totalNo || 0,
                 totalPool: poolState?.totalPool || 0,
+                liquidityYes: poolState?.liquidityYes || 0,
+                liquidityNo: poolState?.liquidityNo || 0,
+                totalClaimed: poolState?.totalClaimed || 0,
                 currentBlockHeight: blockHeight,
             }
         }))
@@ -331,6 +342,9 @@ class AleoService {
                 totalYes: poolState?.totalYes || 0,
                 totalNo: poolState?.totalNo || 0,
                 totalPool: poolState?.totalPool || 0,
+                liquidityYes: poolState?.liquidityYes || 0,
+                liquidityNo: poolState?.liquidityNo || 0,
+                totalClaimed: poolState?.totalClaimed || 0,
                 currentBlockHeight: blockHeight,
             }
         } catch (error) {
@@ -358,12 +372,13 @@ class AleoService {
         ]
     }
 
-    buildCreateMarketInputs(marketId, resolutionHeight, questionHash) {
+    buildCreateMarketInputs(marketId, resolutionHeight, questionHash, oracleAddress) {
         const hashStr = typeof questionHash === 'bigint' ? questionHash.toString() : String(questionHash)
         return [
             `${marketId}field`,
             `${resolutionHeight}u32`,
             `${hashStr}field`,
+            oracleAddress,
         ]
     }
 
@@ -371,6 +386,91 @@ class AleoService {
         return [
             `${marketId}field`,
             `${winningOutcome}u8`,
+        ]
+    }
+
+    // ============================================
+    // PAYOUT & ODDS CALCULATION
+    // ============================================
+
+    /**
+     * Calculate proportional payout: (betAmount × totalPool) ÷ winningPool
+     * Uses BigInt to match on-chain u128 math exactly
+     */
+    calculatePayout(betAmount, outcome, pool) {
+        const winningPool = outcome === 1 ? pool.totalYes : pool.totalNo
+        if (!winningPool || winningPool === 0) return 0
+        const bet = BigInt(betAmount)
+        const total = BigInt(pool.totalPool)
+        const winning = BigInt(winningPool)
+        return Number((bet * total) / winning)
+    }
+
+    /**
+     * Calculate implied probability from pool ratios
+     * Returns { yes: number, no: number } as percentages
+     */
+    calculateImpliedOdds(pool) {
+        const total = (pool.totalYes || 0) + (pool.totalNo || 0)
+        if (total === 0) return { yes: 50, no: 50 }
+        return {
+            yes: ((pool.totalYes || 0) / total) * 100,
+            no: ((pool.totalNo || 0) / total) * 100,
+        }
+    }
+
+    /**
+     * Estimate potential payout if user places a new bet
+     * Accounts for the user's bet changing the pool size
+     */
+    estimatePayout(betAmount, outcome, pool) {
+        const currentYes = pool.totalYes || 0
+        const currentNo = pool.totalNo || 0
+        const currentTotal = pool.totalPool || 0
+
+        const newYes = outcome === 1 ? currentYes + betAmount : currentYes
+        const newNo = outcome === 0 ? currentNo + betAmount : currentNo
+        const newTotal = currentTotal + betAmount
+        const winningPool = outcome === 1 ? newYes : newNo
+
+        if (winningPool === 0) return 0
+        return Math.floor((betAmount * newTotal) / winningPool)
+    }
+
+    /**
+     * Calculate the multiplier for a given outcome
+     */
+    getPayoutMultiplier(outcome, pool) {
+        const winningPool = outcome === 1 ? pool.totalYes : pool.totalNo
+        if (!winningPool || winningPool === 0) return 0
+        return pool.totalPool / winningPool
+    }
+
+    // ============================================
+    // NEW TRANSACTION BUILDERS
+    // ============================================
+
+    buildSeedLiquidityInputs(marketId, yesAmount, noAmount) {
+        const cleanId = String(marketId).replace('field', '')
+        return [
+            `${cleanId}field`,
+            `${yesAmount}u64`,
+            `${noAmount}u64`,
+        ]
+    }
+
+    buildClaimWinningsInputs(betRecord, claimedPayout) {
+        // betRecord is the raw record from the wallet
+        return [
+            betRecord, // private Bet record
+            `${claimedPayout}u64`, // public claimed_payout
+        ]
+    }
+
+    buildWithdrawLiquidityInputs(lpTokenRecord, expectedReturn) {
+        return [
+            lpTokenRecord, // private LPToken record
+            `${expectedReturn}u64`, // public expected_return
         ]
     }
 }

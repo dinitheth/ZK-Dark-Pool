@@ -8,7 +8,7 @@ export const ALEO_CONFIG = {
     rpcUrl: 'https://api.explorer.provable.com/v1',
 
     // Program ID - update this after deployment
-    programId: 'dark_pool_marketv2.aleo',
+    programId: 'dark_pool_marketv3.aleo',
 
     // Fee settings (in microcredits)
     fees: {
@@ -16,6 +16,8 @@ export const ALEO_CONFIG = {
         placeBet: 100000,       // 0.1 credits
         resolveMarket: 100000,  // 0.1 credits
         claimWinnings: 100000,  // 0.1 credits
+        seedLiquidity: 200000,  // 0.2 credits
+        withdrawLiquidity: 100000, // 0.1 credits
     },
 
     // Mapping names

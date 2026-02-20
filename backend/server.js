@@ -34,6 +34,22 @@ async function initDatabase() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS price_history (
+                id SERIAL PRIMARY KEY,
+                market_id VARCHAR(255) NOT NULL,
+                yes_price NUMERIC(10,6) NOT NULL,
+                no_price NUMERIC(10,6) NOT NULL,
+                liquidity_yes BIGINT DEFAULT 0,
+                liquidity_no BIGINT DEFAULT 0,
+                total_pool BIGINT DEFAULT 0,
+                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `)
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_price_history_market
+            ON price_history (market_id, recorded_at DESC)
+        `)
         console.log('Database initialized successfully')
     } catch (error) {
         console.error('Database initialization failed:', error)
@@ -169,6 +185,51 @@ app.post('/api/markets/cache', async (req, res) => {
         res.json({ success: true, count: markets.length })
     } catch (error) {
         console.error('Error caching markets:', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
+})
+
+// Price history: record a snapshot
+app.post('/api/prices/snapshot', async (req, res) => {
+    const { marketId, yesPrice, noPrice, liquidityYes, liquidityNo, totalPool } = req.body
+    if (!marketId || yesPrice == null || noPrice == null) {
+        return res.status(400).json({ error: 'marketId, yesPrice, noPrice required' })
+    }
+    try {
+        const cleanId = String(marketId).replace('field', '')
+        await pool.query(`
+            INSERT INTO price_history (market_id, yes_price, no_price, liquidity_yes, liquidity_no, total_pool)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        `, [cleanId, yesPrice, noPrice, liquidityYes || 0, liquidityNo || 0, totalPool || 0])
+        res.json({ success: true })
+    } catch (error) {
+        console.error('Error recording price:', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
+})
+
+// Price history: get history for a market
+app.get('/api/prices/:marketId', async (req, res) => {
+    try {
+        const marketId = String(req.params.marketId).replace('field', '')
+        const limit = parseInt(req.query.limit) || 100
+        const result = await pool.query(
+            'SELECT yes_price, no_price, liquidity_yes, liquidity_no, total_pool, recorded_at FROM price_history WHERE market_id = $1 ORDER BY recorded_at DESC LIMIT $2',
+            [marketId, limit]
+        )
+        res.json({
+            marketId,
+            history: result.rows.map(r => ({
+                yesPrice: parseFloat(r.yes_price),
+                noPrice: parseFloat(r.no_price),
+                liquidityYes: parseInt(r.liquidity_yes),
+                liquidityNo: parseInt(r.liquidity_no),
+                totalPool: parseInt(r.total_pool),
+                recordedAt: r.recorded_at,
+            })).reverse()
+        })
+    } catch (error) {
+        console.error('Error fetching price history:', error)
         res.status(500).json({ error: 'Internal server error' })
     }
 })

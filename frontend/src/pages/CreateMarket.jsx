@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
-import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
 import { ALEO_CONFIG, getExplorerUrl, API_BASE_URL } from '../config'
 import aleoService from '../services/AleoService'
 import marketStorage from '../services/MarketStorage'
@@ -15,6 +14,7 @@ export default function CreateMarket() {
         question: '',
         category: 'crypto',
         resolutionDays: 30,
+        oracleAddress: '',
     })
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
@@ -99,8 +99,9 @@ export default function CreateMarket() {
 
             setTxStatus('Building transaction...')
 
-            // Build transaction inputs (now includes questionHash for on-chain storage)
-            const inputs = aleoService.buildCreateMarketInputs(marketId, resolutionHeight, questionHashNum)
+            // Build transaction inputs (now includes questionHash + oracle for on-chain storage)
+            const oracleAddr = formData.oracleAddress.trim() || publicKey
+            const inputs = aleoService.buildCreateMarketInputs(marketId, resolutionHeight, questionHashNum, oracleAddr)
 
             setTxStatus('Requesting wallet signature...')
 
@@ -144,6 +145,10 @@ export default function CreateMarket() {
                     totalYes: 0,
                     totalNo: 0,
                     totalPool: 0,
+                    liquidityYes: 0,
+                    liquidityNo: 0,
+                    totalClaimed: 0,
+                    oracle: oracleAddr,
                     currentBlockHeight: currentHeight,
                     ipfsCid: ipfsResult?.cid || ''
                 }
@@ -283,6 +288,42 @@ export default function CreateMarket() {
                         </div>
                     </div>
 
+                    <div className="form-section">
+                        <div className="input-group">
+                            <label htmlFor="oracleAddress">Oracle Address (optional)</label>
+                            <small style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
+                                An external address authorized to resolve the market. Leave blank to use your own address (self-resolve).
+                            </small>
+                            <input
+                                type="text"
+                                id="oracleAddress"
+                                name="oracleAddress"
+                                className="input"
+                                placeholder="aleo1... (leave blank for self-resolution)"
+                                value={formData.oracleAddress}
+                                onChange={handleChange}
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{
+                        padding: 'var(--spacing-md)',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid rgba(99, 102, 241, 0.2)',
+                        marginBottom: 'var(--spacing-xl)'
+                    }}>
+                        <h4 style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--color-accent)' }}>
+                            💧 Initial Liquidity
+                        </h4>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+                            After your market is confirmed on-chain, visit the market detail page to <strong>seed initial liquidity</strong>.
+                            Liquidity bootstraps the AMM pricing and enables meaningful odds display.
+                            Credits are transferred via <code>credits.aleo</code> integration.
+                        </p>
+                    </div>
+
                     <div style={{
                         padding: 'var(--spacing-md)',
                         background: 'var(--color-bg-tertiary)',
@@ -299,9 +340,11 @@ export default function CreateMarket() {
                             paddingLeft: 'var(--spacing-lg)'
                         }}>
                             <li>Market ID (derived from question)</li>
-                            <li>Resolution time</li>
+                            <li>Resolution block height</li>
                             <li>Total pool sizes (YES/NO aggregated)</li>
                             <li>Your address as creator</li>
+                            <li>Oracle address (resolver)</li>
+                            <li>Credit transfers via <code>credits.aleo</code></li>
                         </ul>
 
                         <h4 style={{ marginTop: 'var(--spacing-md)', marginBottom: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>

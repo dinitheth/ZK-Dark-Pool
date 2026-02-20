@@ -15,6 +15,19 @@ export default function BetForm({ market, onBetPlaced }) {
     const [balanceLoading, setBalanceLoading] = useState(false)
     const [balanceWarning, setBalanceWarning] = useState('')
 
+    // Calculate implied odds from current pool
+    const impliedOdds = aleoService.calculateImpliedOdds(market)
+
+    // Calculate estimated payout when amount and outcome are selected
+    const estimatedPayout = (selectedOutcome !== null && amount)
+        ? aleoService.estimatePayout(parseInt(amount) || 0, selectedOutcome, market)
+        : null
+
+    const estimatedProfit = estimatedPayout ? estimatedPayout - (parseInt(amount) || 0) : null
+    const payoutMultiplier = (selectedOutcome !== null)
+        ? aleoService.getPayoutMultiplier(selectedOutcome, market)
+        : null
+
     // Fetch wallet balance when connected (try multiple APIs)
     useEffect(() => {
         const fetchBalance = async () => {
@@ -209,6 +222,27 @@ export default function BetForm({ market, onBetPlaced }) {
                 Place Your Bet
             </h3>
 
+            {/* Implied Odds Display */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 'var(--spacing-sm)',
+                marginBottom: 'var(--spacing-md)',
+                padding: 'var(--spacing-sm)',
+                background: 'var(--color-bg-tertiary)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem'
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>YES Implied</div>
+                    <div style={{ color: 'var(--color-yes)', fontWeight: 600 }}>{impliedOdds.yes.toFixed(1)}%</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>NO Implied</div>
+                    <div style={{ color: 'var(--color-no)', fontWeight: 600 }}>{impliedOdds.no.toFixed(1)}%</div>
+                </div>
+            </div>
+
             {connected && (
                 <div style={{
                     display: 'flex',
@@ -328,6 +362,40 @@ export default function BetForm({ market, onBetPlaced }) {
                 <small style={{ color: 'var(--color-text-muted)', marginTop: 'var(--spacing-xs)' }}>
                     1 ALEO = 10,000 microcredits
                 </small>
+
+                {/* Estimated Payout Preview */}
+                {estimatedPayout !== null && estimatedPayout > 0 && (
+                    <div style={{
+                        marginTop: 'var(--spacing-md)',
+                        padding: 'var(--spacing-sm)',
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.85rem'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Est. Payout if {selectedOutcome === 1 ? 'YES' : 'NO'} wins:</span>
+                            <span style={{ color: 'var(--color-yes)', fontWeight: 600 }}>
+                                {estimatedPayout.toLocaleString()} microcredits
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Est. Profit:</span>
+                            <span style={{ color: estimatedProfit > 0 ? 'var(--color-yes)' : 'var(--color-no)', fontWeight: 600 }}>
+                                {estimatedProfit > 0 ? '+' : ''}{estimatedProfit.toLocaleString()} microcredits
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Multiplier:</span>
+                            <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>
+                                {(estimatedPayout / (parseInt(amount) || 1)).toFixed(2)}x
+                            </span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                            * Estimate based on current pool. Final payout depends on pool at resolution.
+                        </div>
+                    </div>
+                )}
             </div>
 
             <button
@@ -343,7 +411,8 @@ export default function BetForm({ market, onBetPlaced }) {
             </button>
 
             <div className="bet-privacy-note">
-                Your bet amount and choice are encrypted on-chain. Only you can decrypt them.
+                <strong>Real Credit Transfer:</strong> Your bet amount will be transferred from your wallet to the program via <code>credits.aleo</code>.
+                Your bet choice and amount are encrypted on-chain. Only you can decrypt them.
             </div>
 
             {/* Transaction Details (for developers) */}
