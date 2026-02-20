@@ -307,61 +307,6 @@ export default function CreateMarket() {
                         </div>
                     </div>
 
-                    <div style={{
-                        padding: 'var(--spacing-md)',
-                        background: 'rgba(99, 102, 241, 0.08)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid rgba(99, 102, 241, 0.2)',
-                        marginBottom: 'var(--spacing-xl)'
-                    }}>
-                        <h4 style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--color-accent)' }}>
-                            💧 Initial Liquidity
-                        </h4>
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-                            After your market is confirmed on-chain, visit the market detail page to <strong>seed initial liquidity</strong>.
-                            Liquidity bootstraps the AMM pricing and enables meaningful odds display.
-                            Credits are transferred via <code>credits.aleo</code> integration.
-                        </p>
-                    </div>
-
-                    <div style={{
-                        padding: 'var(--spacing-md)',
-                        background: 'var(--color-bg-tertiary)',
-                        borderRadius: 'var(--radius-md)',
-                        marginBottom: 'var(--spacing-xl)'
-                    }}>
-                        <h4 style={{ marginBottom: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                            <span className="privacy-indicator public">Public</span>
-                            What's visible on-chain
-                        </h4>
-                        <ul style={{
-                            color: 'var(--color-text-secondary)',
-                            fontSize: '0.875rem',
-                            paddingLeft: 'var(--spacing-lg)'
-                        }}>
-                            <li>Market ID (derived from question)</li>
-                            <li>Resolution block height</li>
-                            <li>Total pool sizes (YES/NO aggregated)</li>
-                            <li>Your address as creator</li>
-                            <li>Oracle address (resolver)</li>
-                            <li>Credit transfers via <code>credits.aleo</code></li>
-                        </ul>
-
-                        <h4 style={{ marginTop: 'var(--spacing-md)', marginBottom: 'var(--spacing-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                            <span className="privacy-indicator private">Private</span>
-                            What stays hidden
-                        </h4>
-                        <ul style={{
-                            color: 'var(--color-text-secondary)',
-                            fontSize: '0.875rem',
-                            paddingLeft: 'var(--spacing-lg)'
-                        }}>
-                            <li>Individual bet amounts</li>
-                            <li>Individual bet outcomes (YES/NO)</li>
-                            <li>Bettor identities</li>
-                        </ul>
-                    </div>
-
                     <button
                         type="submit"
                         className="btn btn-primary"
