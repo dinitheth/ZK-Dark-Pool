@@ -63,7 +63,6 @@ export default function MarketDetail() {
     const isCreator = connected && publicKey && market?.creator === publicKey
     const isOracle = connected && publicKey && market?.oracle === publicKey
     const canResolve = (isCreator || isOracle) && market && !market.resolved && currentBlockHeight >= market.resolutionHeight
-    const hasLiquidity = market && (market.liquidityYes > 0 || market.liquidityNo > 0)
 
     const formatCredits = (amount) => {
         return new Intl.NumberFormat('en-US').format(amount)
@@ -170,6 +169,22 @@ export default function MarketDetail() {
                     </p>
                 )}
 
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: 'var(--spacing-md)',
+                    fontSize: '0.875rem'
+                }}>
+                    <div>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Resolution Date: </span>
+                        <span style={{ fontWeight: 500 }}>{estimateResolutionDate(market.resolutionHeight)}</span>
+                    </div>
+                    <div>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Time Remaining: </span>
+                        <span style={{ fontWeight: 500 }}>{formatBlocksToTime(market.resolutionHeight)}</span>
+                    </div>
+                </div>
+
                 <div style={{ marginBottom: 'var(--spacing-xl)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
                         <span style={{ color: 'var(--color-yes)', fontWeight: 600 }}>
@@ -210,49 +225,21 @@ export default function MarketDetail() {
                 </div>
 
                 <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: 'var(--spacing-lg)',
                     marginTop: 'var(--spacing-lg)',
                     paddingTop: 'var(--spacing-lg)',
                     borderTop: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-md)',
                     fontSize: '0.875rem'
                 }}>
-                    <div>
-                        <span style={{ color: 'var(--color-text-muted)' }}>Resolution Date: </span>
-                        <span style={{ fontWeight: 500 }}>{estimateResolutionDate(market.resolutionHeight)}</span>
-                    </div>
-                    <div>
-                        <span style={{ color: 'var(--color-text-muted)' }}>Time Remaining: </span>
-                        <span style={{ fontWeight: 500 }}>{formatBlocksToTime(market.resolutionHeight)}</span>
-                    </div>
-                    <div>
-                        <span style={{ color: 'var(--color-text-muted)' }}>Creator: </span>
-                        <span className="mono" style={{ fontWeight: 500 }}>
-                            {market.creator?.slice(0, 10)}...{market.creator?.slice(-6)}
-                        </span>
-                    </div>
-                    <div>
-                        <span style={{ color: 'var(--color-text-muted)' }}>Oracle: </span>
-                        <span className="mono" style={{ fontWeight: 500 }}>
-                            {market.oracle ? (market.oracle === market.creator ? 'Creator (self-resolve)' : `${market.oracle?.slice(0, 10)}...${market.oracle?.slice(-6)}`) : 'Creator'}
-                        </span>
-                    </div>
-                    <div>
-                        <span className="privacy-indicator private">Individual bets hidden</span>
-                    </div>
-                    <div>
-                        <span style={{ color: 'var(--color-text-muted)' }}>Liquidity: </span>
-                        <span style={{ fontWeight: 500, color: hasLiquidity ? 'var(--color-yes)' : 'var(--color-pending)' }}>
-                            {hasLiquidity
-                                ? `${formatCredits(market.liquidityYes || 0)} YES / ${formatCredits(market.liquidityNo || 0)} NO`
-                                : 'Not seeded yet'}
-                        </span>
-                    </div>
+                    <span className="privacy-indicator private">Individual bets hidden</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Oracle: </span>
+                    <span className="mono" style={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                        {market.oracle ? (market.oracle === market.creator ? 'Creator (self-resolve)' : `${market.oracle?.slice(0, 10)}...${market.oracle?.slice(-6)}`) : 'Creator'}
+                    </span>
                 </div>
 
-                {/* Payout Info Box - removed */}
-                
                 <div style={{
                     marginTop: 'var(--spacing-lg)',
                     padding: 'var(--spacing-sm)',
